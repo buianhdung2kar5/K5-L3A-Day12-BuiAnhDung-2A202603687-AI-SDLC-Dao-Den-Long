@@ -19,7 +19,7 @@
 
 ## Token và chi phí
 
-**Không đo được:** Claude Code không ghi lại số token trong phiên làm việc và trợ lý không đọc được `/cost` hay trang usage của tài khoản, nên **không có con số token/chi phí thật**; tôi không ước lượng con số cụ thể để tránh ghi sai bằng chứng. Nhận xét định tính:
+**Số liệu thật từ trang Account & Usage (gói Claude Pro, chụp ngày 20/11/2026 sau khi làm xong Phase 4):** phiên 5 giờ hiện tại đã dùng **14%** hạn mức, hạn mức **tuần (7 ngày) đã dùng 48%** (đặt lại 21/11 lúc 10:59). Gói Pro chỉ hiển thị phần trăm hạn mức, **không hiển thị số token hay chi phí bằng tiền**, và không tách theo từng phase, nên tôi không ghi số token cụ thể. Con số 48% là cả tuần trên máy này (gồm cả các phiên khác, không chỉ lab) nên chỉ là cận trên cho lab. Trang usage còn cho biết phần lớn mức dùng (**88%** theo mục "What's contributing") đến từ việc **không bắt đầu phiên mới khi đổi việc**, tức một phiên rất dài nên mỗi lượt phải đọc lại ngữ cảnh lớn. Nhận xét định tính:
 
 - Nhiều token nhất: viết `sim.ts`, `main.ts`, `cases.json`, `e2e.mjs` (mỗi file vài trăm dòng) và đọc ảnh chụp.
 - Cách tiết kiệm đã dùng: đọc yêu cầu một lần (lưu bản tóm tắt), đặt toàn bộ tuning ở một file, kiểm chứng sớm bằng headless (rẻ) trước khi dựng đồ họa, chỉ xem ảnh chụp ở những mốc cần thiết (4 ảnh), không chạy agent phụ.

@@ -42,12 +42,12 @@
 ## 5. Harness giúp nhiều nhất, token và chi phí
 
 - **Hiệu quả nhất:** `CLAUDE.md` với mục "Lessons" (mỗi lỗi lặp lại được ghi một dòng) và skill `headless-scenario` (cách viết case tính tay). Hook chưa dùng.
-- **Token/chi phí:** **Không đo được:** Claude Code không ghi lại số token trong phiên làm việc và trợ lý không đọc được `/cost` hay trang usage của tài khoản, nên **không có con số token/chi phí thật**; tôi không ước lượng con số cụ thể để tránh ghi sai bằng chứng. Nhận xét định tính (không phải số đo): cả bốn phase dùng chung một phiên dài, ngữ cảnh lớn do nhiều tệp mã và ảnh chụp; Phase 2 và 4 tốn nhất (viết lại `sim.ts`, `main.ts`, test lớn, đọc ảnh chụp); Phase 3 gọn nhất vì chỉ sửa luật.
+- **Token/chi phí:** **Số liệu thật từ trang Account & Usage (gói Claude Pro, chụp ngày 20/11/2026 sau khi làm xong Phase 4):** phiên 5 giờ hiện tại đã dùng **14%** hạn mức, hạn mức **tuần (7 ngày) đã dùng 48%** (đặt lại 21/11 lúc 10:59). Gói Pro chỉ hiển thị phần trăm hạn mức, **không hiển thị số token hay chi phí bằng tiền**, và không tách theo từng phase, nên tôi không ghi số token cụ thể. Con số 48% là cả tuần trên máy này (gồm cả các phiên khác, không chỉ lab) nên chỉ là cận trên cho lab. Trang usage còn cho biết phần lớn mức dùng (**88%** theo mục "What's contributing") đến từ việc **không bắt đầu phiên mới khi đổi việc**, tức một phiên rất dài nên mỗi lượt phải đọc lại ngữ cảnh lớn. Nhận xét định tính (không phải số đo): cả bốn phase dùng chung một phiên dài, ngữ cảnh lớn do nhiều tệp mã và ảnh chụp; Phase 2 và 4 tốn nhất (viết lại `sim.ts`, `main.ts`, test lớn, đọc ảnh chụp); Phase 3 gọn nhất vì chỉ sửa luật.
 - **Cách tiết kiệm đã dùng:** chép ticket một lần rồi làm việc từ bản chép; sửa mã bằng script có assert khớp chuỗi thay vì viết lại tệp; sinh test từ một file Python; kiểm chứng bằng headless (rẻ) trước khi chạy trình duyệt (đắt); chỉ xem ảnh chụp ở vài mốc; không dùng subagent.
 
 ## 6. Nếu làm lại
 
-1. Ghi token sau mỗi bước ngay từ phút đầu.
+1. Ghi token sau mỗi bước ngay từ phút đầu, và **bắt đầu phiên mới (`/clear`) khi sang phase mới**: trang usage chỉ ra phiên dài là nguồn tốn hạn mức lớn nhất (88%), trong khi mỗi phase đã có tài liệu `ticket-0N.md`, giả định và `CLAUDE.md` đủ để làm tiếp mà không cần mang theo cả lịch sử.
 2. Viết bản đồ giả định và gửi hỏi giảng viên/trợ giảng sớm cho những chỗ có nhiều khả năng bị chấm (tốc độ `wander`, vị trí xuất phát, thứ tự chuyển trạng thái).
 3. Đưa benchmark và soak vào từ Phase 2 để phát hiện sớm vấn đề hiệu năng (thin instances ngay từ đầu).
 4. Quay video demo bằng người chơi thật và nghe thử âm thanh trước khi phát hành.
