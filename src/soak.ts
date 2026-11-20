@@ -37,7 +37,9 @@ const gc = runInNewContext("gc") as () => void;
 const rssMb = (): number => {
   gc();
   gc();
-  return Math.round((process.memoryUsage().rss / 1048576) * 10) / 10;
+  // live JS heap after a full GC: unlike RSS it does not depend on how the OS/allocator returns pages (RSS grew 54 -> 89 MB on a Linux CI runner with no leak)
+  const m = process.memoryUsage();
+  return Math.round(((m.heapUsed + m.external) / 1048576) * 10) / 10;
 };
 
 /** Random input from the seed: new direction every 30 ticks; per tick 5% jump, 3% dash, 2% pulse, 10% interact. */

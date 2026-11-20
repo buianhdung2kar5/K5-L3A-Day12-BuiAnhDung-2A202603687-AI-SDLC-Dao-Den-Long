@@ -49,3 +49,4 @@ TypeScript + Node for the simulation and headless CLI; Babylon.js for rendering 
 ## Working style the lab rewards
 
 Per phase: write short acceptance criteria and note assumptions for ambiguous points, plan how to verify before coding, build in small steps, verify by actually running (not by trusting agent claims), then tag. Keep this file short, and update it when the agent repeats the same mistake.
+- Soak memory is the live JS heap after a forced GC (`heapUsed + external`), not RSS: RSS went 54 -> 89 MB on a Linux CI runner with no leak, so the 1.2x check failed there (found by CI after v1.0.0; tag code still uses RSS).
