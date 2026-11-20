@@ -9,8 +9,6 @@ on:
 jobs:
   headless:
     runs-on: ubuntu-latest
-    env:
-      DDL_PROOF_DIR: ${{ runner.temp }}/proof
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -19,4 +17,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
-      - run: npm test
+      - name: npm test (proof goes to the runner temp dir, not the repo)
+        env:
+          DDL_PROOF_DIR: ${{ runner.temp }}/proof
+        run: npm test
