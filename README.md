@@ -1,6 +1,6 @@
 # Đảo Đèn Lồng (Day 12 — AI SDLC) · v1.0.0
 
-> **Video demo (dưới 5 phút):** [GitHub Release v1.0.0](https://github.com/buianhdung2kar5/K5-L3A-LAB-Day12-BuiAnhDung-2A202603687-AI-SDLC/releases/tag/v1.0.0) (file `demo.mp4`; video do script tự chơi và ghi lại)
+> **Video demo (dưới 5 phút):** [GitHub Release v1.0.0](https://github.com/buianhdung2kar5/K5-L3A-Day12-BuiAnhDung-2A202603687-AI-SDLC-Dao-Den-Long/releases/tag/v1.0.0) (file `demo.mp4`; video do script tự chơi và ghi lại)
 
 Game 3D góc nhìn thứ ba chạy trên trình duyệt (TypeScript + Babylon.js). Mây, người giữ đèn nhỏ tuổi, gom đom đóm để thắp và **giữ sáng** các Đèn Lồng Lớn trên ba hòn đảo (Đảo Bến, Đảo Cau, Đảo Chuông) cho tới bình minh, trong khi Bóng Mực tới hút dầu đèn.
 
@@ -21,7 +21,7 @@ npm run build
 npm start        # mở http://localhost:8080 (PORT=3000 npm start để đổi cổng; tự chuyển cổng khác nếu bận)
 ```
 
-Bản phát hành (thư mục web tĩnh + server Node không phụ thuộc gói ngoài) nằm trong [Release v1.0.0](https://github.com/buianhdung2kar5/K5-L3A-LAB-Day12-BuiAnhDung-2A202603687-AI-SDLC/releases/tag/v1.0.0): giải nén rồi chạy `node scripts/serve.mjs`.
+Bản phát hành (thư mục web tĩnh + server Node không phụ thuộc gói ngoài) nằm trong [Release v1.0.0](https://github.com/buianhdung2kar5/K5-L3A-Day12-BuiAnhDung-2A202603687-AI-SDLC-Dao-Den-Long/releases/tag/v1.0.0): giải nén rồi chạy `node scripts/serve.mjs`.
 
 ## Điều khiển (đổi được trong Cài đặt)
 
@@ -55,7 +55,16 @@ Contract: [game.contract.json](game.contract.json) (v1.3) · Yêu cầu và gi�
 
 ## Sáng tạo của tôi
 
-Nhân vật Mây (nón chóp có đèn nhỏ), Bóng Mực có mắt, Gió Lạc, Bùa Gió, âm thanh tự tổng hợp bằng Web Audio, bảng màu dễ phân biệt, giao diện kính mờ. Trong cảnh benchmark và soak test các phần này không ảnh hưởng số đo (cờ `bench` tắt gameplay; soak chạy headless không có hiển thị).
+Các ý thêm ngoài phần lõi (tất cả tắt hoặc không ảnh hưởng đầu ra headless; cảnh benchmark dùng cờ `bench` tắt gameplay):
+
+| Ý sáng tạo | Bằng chứng ngắn | Test |
+|---|---|---|
+| Bóng Mực có mắt, viền tím phát sáng, phình lên khi đang hút dầu | [ảnh](docs/proof/phase4/screens/e2e-drain.png) | `shade_walks_to_weak_lantern_and_drains` (e2e) |
+| Gió Lạc (dải lụa cướp đom đóm) | [ảnh](docs/proof/phase4/screens/e2e-drifter.png) | `night2_drifter_steals` (e2e), `drifter_steals_3_and_flees` (headless) |
+| Bùa Gió (chạy 7.2 m/s, lướt không hồi chiêu) | [ảnh](docs/proof/phase4/screens/e2e-charm.png) | `night2_charm_pickup_speed` (e2e), `charm_*` (headless) |
+| Bảng màu dễ phân biệt, đèn tắt xẹp và có vết rách | [ảnh](docs/proof/phase4/screens/e2e-colourblind-settings.png) | `colour_blind_setting_persists` (e2e) |
+| Lời Ông Đăng mở đầu mỗi Đêm, giao diện kính mờ, đom đóm bay ở menu | [ảnh](docs/proof/phase4/screens/e2e-intro.png) | `menu_intro_play_flow` (e2e) |
+| Nhạc nền và hiệu ứng âm thanh tự tổng hợp bằng Web Audio (không dùng tệp âm thanh) | `src/web/audio.ts` | **chưa nghe thử** trong môi trường kiểm thử, chưa có bằng chứng |
 
 ---
 

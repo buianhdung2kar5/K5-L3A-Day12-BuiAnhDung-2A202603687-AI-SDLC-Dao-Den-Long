@@ -1,0 +1,22 @@
+name: test
+
+# Runs the headless suite (hand-computed cases, determinism, full-night timing, soak, leaderboard) on every push and pull request.
+# The browser tests (npm run e2e) and the benchmark need Chrome and a GPU, so they are run by hand and their results are committed in docs/proof/.
+on:
+  push:
+  pull_request:
+
+jobs:
+  headless:
+    runs-on: ubuntu-latest
+    env:
+      DDL_PROOF_DIR: ${{ runner.temp }}/proof
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test

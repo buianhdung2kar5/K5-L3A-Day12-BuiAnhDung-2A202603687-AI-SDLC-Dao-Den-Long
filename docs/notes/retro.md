@@ -42,7 +42,7 @@
 ## 5. Harness giúp nhiều nhất, token và chi phí
 
 - **Hiệu quả nhất:** `CLAUDE.md` với mục "Lessons" (mỗi lỗi lặp lại được ghi một dòng) và skill `headless-scenario` (cách viết case tính tay). Hook chưa dùng.
-- **Token/chi phí:** **chưa đo được** (phiên không ghi lại số token). Điền số thật từ `/cost` hoặc trang usage: `______`. Nhận xét định tính: Phase 2 và 4 tốn nhất (viết lại `sim.ts`, `main.ts`, test lớn, đọc ảnh chụp); Phase 3 gọn nhất vì chỉ sửa luật.
+- **Token/chi phí:** **Không đo được:** Claude Code không ghi lại số token trong phiên làm việc và trợ lý không đọc được `/cost` hay trang usage của tài khoản, nên **không có con số token/chi phí thật**; tôi không ước lượng con số cụ thể để tránh ghi sai bằng chứng. Nhận xét định tính (không phải số đo): cả bốn phase dùng chung một phiên dài, ngữ cảnh lớn do nhiều tệp mã và ảnh chụp; Phase 2 và 4 tốn nhất (viết lại `sim.ts`, `main.ts`, test lớn, đọc ảnh chụp); Phase 3 gọn nhất vì chỉ sửa luật.
 - **Cách tiết kiệm đã dùng:** chép ticket một lần rồi làm việc từ bản chép; sửa mã bằng script có assert khớp chuỗi thay vì viết lại tệp; sinh test từ một file Python; kiểm chứng bằng headless (rẻ) trước khi chạy trình duyệt (đắt); chỉ xem ảnh chụp ở vài mốc; không dùng subagent.
 
 ## 6. Nếu làm lại

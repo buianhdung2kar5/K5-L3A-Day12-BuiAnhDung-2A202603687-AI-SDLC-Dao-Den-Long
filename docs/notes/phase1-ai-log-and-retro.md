@@ -19,7 +19,7 @@
 
 ## Token và chi phí
 
-Chưa đo được: phiên này không ghi lại số token. **Điền số thật từ `/cost` hoặc trang usage trước khi nộp.** Nhận xét định tính:
+**Không đo được:** Claude Code không ghi lại số token trong phiên làm việc và trợ lý không đọc được `/cost` hay trang usage của tài khoản, nên **không có con số token/chi phí thật**; tôi không ước lượng con số cụ thể để tránh ghi sai bằng chứng. Nhận xét định tính:
 
 - Nhiều token nhất: viết `sim.ts`, `main.ts`, `cases.json`, `e2e.mjs` (mỗi file vài trăm dòng) và đọc ảnh chụp.
 - Cách tiết kiệm đã dùng: đọc yêu cầu một lần (lưu bản tóm tắt), đặt toàn bộ tuning ở một file, kiểm chứng sớm bằng headless (rẻ) trước khi dựng đồ họa, chỉ xem ảnh chụp ở những mốc cần thiết (4 ảnh), không chạy agent phụ.

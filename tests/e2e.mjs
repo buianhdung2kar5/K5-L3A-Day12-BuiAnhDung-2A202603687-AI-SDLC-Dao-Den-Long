@@ -9,7 +9,8 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const shots = join(root, "docs", "proof", "phase4", "screens");
+const proofRoot = process.env.DDL_PROOF_DIR ?? join(root, "docs", "proof", "phase4");
+const shots = join(proofRoot, "screens");
 mkdirSync(shots, { recursive: true });
 const PORT = 8123;
 const base = `http://localhost:${PORT}/`;
@@ -600,6 +601,6 @@ const md = [
   "Not covered: mouse-drag camera rotation, audio output (no sound device in the test browser), long play sessions, other GPUs.",
   "",
 ].join("\n");
-writeFileSync(join(root, "docs", "proof", "phase4", "e2e-results.md"), md);
+writeFileSync(join(proofRoot, "e2e-results.md"), md);
 console.log(`\n${results.length - failed}/${results.length} e2e passed`);
 process.exit(failed ? 1 : 0);

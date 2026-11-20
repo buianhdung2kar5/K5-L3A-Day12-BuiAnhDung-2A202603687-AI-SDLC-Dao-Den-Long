@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const bin = join(root, "dist", "headless.js");
-const proofDir = join(root, "docs", "proof", "phase4");
+const proofDir = process.env.DDL_PROOF_DIR ?? join(root, "docs", "proof", "phase4"); // DDL_PROOF_DIR: used by CI and the Stop hook so the committed proof is not rewritten
 const runsDir = join(proofDir, "runs");
 rmSync(runsDir, { recursive: true, force: true });
 mkdirSync(runsDir, { recursive: true });

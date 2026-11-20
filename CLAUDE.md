@@ -21,6 +21,7 @@ TypeScript + Node for the simulation and headless CLI; Babylon.js for rendering 
 - Layout: `src/sim/` is pure logic with no DOM or Babylon imports, shared by the game and `src/headless.ts`: `sim.ts` (tick order from the ticket), `maps.ts` (the three Nights: height field, lanterns, spawn points, pads), `scenario.ts` (input validation, exit code 2), `tuning.ts` (`TUNING` imported from `game.contract.json`, plus engine constants `K`). `src/web/` is rendering, HUD, screens, settings (localStorage) and synthesised audio (`audio.ts`); it only reads sim state.
 - Determinism: separate seeded RNG streams per purpose (`stream(seed, salt)`); never use `Math.random` or wall-clock time in `src/sim`.
 - Skill: `.claude/skills/headless-scenario/SKILL.md` explains how to add a hand-computed test case.
+- Hook: `.claude/settings.json` has a Stop hook that runs `npm test` (with `DDL_PROOF_DIR` pointing to a temp folder so the committed proof is not rewritten) and blocks finishing (exit 2) while headless tests are red. CI: `.github/workflows/test.yml` runs typecheck + `npm test` on every push. `DDL_PROOF_DIR` also redirects `npm run e2e` output.
 
 ## Lessons (update when the agent repeats a mistake)
 

@@ -19,7 +19,7 @@
 
 ## Token và chi phí
 
-Chưa đo được: phiên này không ghi lại số token. **Điền số thật từ `/cost` hoặc trang usage trước khi nộp.** Nhận xét định tính: Phase 2 tốn nhiều token hơn Phase 1 (viết lại `sim.ts` và `main.ts` khoảng vài trăm dòng mỗi file, tệp test lớn, đọc ảnh). Cách tiết kiệm: chép số liệu một lần vào `ticket-02.md` rồi chỉ làm việc từ bản chép; làm headless và test trước đồ họa; sinh `cases.json` bằng script nhỏ thay vì gõ tay từng case; chỉ xem ảnh chụp ở vài mốc.
+**Không đo được:** Claude Code không ghi lại số token trong phiên làm việc và trợ lý không đọc được `/cost` hay trang usage của tài khoản, nên **không có con số token/chi phí thật**; tôi không ước lượng con số cụ thể để tránh ghi sai bằng chứng. Nhận xét định tính: Phase 2 tốn nhiều token hơn Phase 1 (viết lại `sim.ts` và `main.ts` khoảng vài trăm dòng mỗi file, tệp test lớn, đọc ảnh). Cách tiết kiệm: chép số liệu một lần vào `ticket-02.md` rồi chỉ làm việc từ bản chép; làm headless và test trước đồ họa; sinh `cases.json` bằng script nhỏ thay vì gõ tay từng case; chỉ xem ảnh chụp ở vài mốc.
 
 ## Chỗ AI sai hoặc cần sửa
 

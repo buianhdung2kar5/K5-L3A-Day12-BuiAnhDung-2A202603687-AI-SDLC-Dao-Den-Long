@@ -19,7 +19,7 @@ Claude Code (model Sonnet 5.5) trong VS Code, cùng phiên với Phase 1-3. Harn
 
 ## Token và chi phí
 
-Chưa đo được. Điền số thật từ `/cost` hoặc trang usage trước khi nộp (xem `retro.md` mục 5).
+**Không đo được:** Claude Code không ghi lại số token trong phiên làm việc và trợ lý không đọc được `/cost` hay trang usage của tài khoản, nên **không có con số token/chi phí thật**; tôi không ước lượng con số cụ thể để tránh ghi sai bằng chứng. Nhận xét định tính xem `retro.md` mục 5.
 
 ## Chỗ AI sai hoặc cần sửa
 

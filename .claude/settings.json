@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "DDL_PROOF_DIR=\"${TMPDIR:-/tmp}/ddl-stop-hook-proof\" npm test --silent > \"${TMPDIR:-/tmp}/ddl-stop-hook.log\" 2>&1 || { echo \"Headless tests are failing (see ${TMPDIR:-/tmp}/ddl-stop-hook.log). Fix them or record why a case changed before finishing.\" >&2; exit 2; }",
+            "timeout": 300
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -18,7 +18,7 @@
 
 ## Token và chi phí
 
-Chưa đo được: phiên này không ghi lại số token. **Điền số thật từ `/cost` hoặc trang usage trước khi nộp.** Nhận xét định tính: Phase 3 gọn hơn Phase 2 vì ticket thay luật chứ không thêm bản đồ; cách tiết kiệm là patch `sim.ts` bằng script có kiểm tra khớp chuỗi (mỗi chỗ sửa assert tồn tại) thay vì viết lại, và sinh test từ một file Python.
+**Không đo được:** Claude Code không ghi lại số token trong phiên làm việc và trợ lý không đọc được `/cost` hay trang usage của tài khoản, nên **không có con số token/chi phí thật**; tôi không ước lượng con số cụ thể để tránh ghi sai bằng chứng. Nhận xét định tính: Phase 3 gọn hơn Phase 2 vì ticket thay luật chứ không thêm bản đồ; cách tiết kiệm là patch `sim.ts` bằng script có kiểm tra khớp chuỗi (mỗi chỗ sửa assert tồn tại) thay vì viết lại, và sinh test từ một file Python.
 
 ## Chỗ AI sai hoặc cần sửa
 
