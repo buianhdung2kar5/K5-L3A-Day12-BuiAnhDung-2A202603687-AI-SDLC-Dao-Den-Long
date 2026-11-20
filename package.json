@@ -1,0 +1,25 @@
+{
+  "name": "dao-den-long",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Dao Den Long - 3D game, TypeScript sim + Babylon.js",
+  "scripts": {
+    "build": "npm run build:headless && npm run build:web",
+    "build:headless": "esbuild src/headless.ts --bundle --platform=node --target=node18 --outfile=dist/headless.js",
+    "build:web": "node scripts/build-web.mjs",
+    "start": "node scripts/serve.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build && node tests/run.mjs",
+    "e2e": "npm run build && node tests/e2e.mjs",
+    "headless": "node dist/headless.js"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "esbuild": "^0.28.2",
+    "puppeteer-core": "^24.43.1",
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "@babylonjs/core": "^9.37.1"
+  }
+}

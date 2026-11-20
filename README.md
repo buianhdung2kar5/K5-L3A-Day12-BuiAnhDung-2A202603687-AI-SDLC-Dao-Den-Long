@@ -1,5 +1,37 @@
 # Day 12 — AI SDLC: Đảo Đèn Lồng
 
+> Video demo: _chưa có (sẽ thêm ở Phase 4)_
+
+## Bản làm của tôi (Phase 1)
+
+Game 3D góc nhìn thứ ba, TypeScript + Babylon.js. Phần mô phỏng (`src/sim`) tách khỏi hiển thị, dùng chung cho game và chế độ headless.
+
+**Cài đặt và chạy** (cần Node 18+, chạy trên macOS/Linux/Windows):
+
+```bash
+npm install
+npm run build
+npm start        # mở http://localhost:8080
+```
+
+**Điều khiển:** WASD đi · Space nhảy · E nạp đom đóm vào đèn · F phát sáng đẩy bóng (tốn 1 đom đóm) · mũi tên trái/phải hoặc kéo chuột để xoay camera · R chơi lại.
+
+**Luật:** nhặt đom đóm (chạm vào), đứng gần Đèn Lồng và bấm E để nạp; mỗi đèn cần 5 đom đóm. Thắp đủ 5 đèn trong 180 giây thì thắng. Bóng Mực chạm vào sẽ mất 1 lửa (có 3 lửa) và rơi một nửa số đom đóm đang mang; hết lửa hoặc hết giờ thì thua. Bóng không vào được vùng quanh đèn.
+
+**Điểm:** +10 mỗi đom đóm, +100 mỗi đèn thắp, +20 mỗi bóng bị choáng, khi thắng thêm +1 mỗi giây còn lại và +50 mỗi lửa còn lại.
+
+**Headless và test:**
+
+```bash
+node dist/headless.js --seed 1 --night 1 --ticks 600 --out out.jsonl [--scenario s.json] [--inputs i.json] [--snapshot-every 10]
+npm test         # build + 24 case, ghi kết quả vào docs/proof/phase1/
+npm run e2e      # điều khiển game thật trong Chrome headless (cần Chrome), đo FPS
+```
+
+Khai báo contract: [game.contract.json](game.contract.json). Giả định và tiêu chí nghiệm thu: [docs/notes/phase1-assumptions.md](docs/notes/phase1-assumptions.md). Bằng chứng: [docs/proof/phase1/](docs/proof/phase1/). Nhật ký dùng AI và retro: [docs/notes/phase1-ai-log-and-retro.md](docs/notes/phase1-ai-log-and-retro.md).
+
+---
+
 > **Cá nhân** (1 người / 1 MSSV) · Áp dụng SDLC cùng AI để xây một **game 3D** qua **4 phase**, từ yêu cầu ban đầu tới bản phát hành.
 > **Lab board + trợ giảng:** **[Đảo Đèn Lồng Lab](https://claude.ai/artifact/Q1RYyv1dxjUczzCbd2ZnoW)**
 

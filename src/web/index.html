@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Đảo Đèn Lồng</title>
+  <link rel="icon" href="data:," />
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #0a0714; font-family: "Segoe UI", system-ui, sans-serif; color: #ffe9b8; }
+    #game { width: 100%; height: 100%; display: block; outline: none; touch-action: none; }
+    #hud { position: fixed; top: 12px; left: 12px; right: 12px; display: flex; gap: 10px; flex-wrap: wrap; pointer-events: none; }
+    .chip { background: rgba(20, 12, 36, 0.62); border: 1px solid rgba(255, 190, 90, 0.35); border-radius: 10px; padding: 6px 12px; font-size: 16px; }
+    .chip b { color: #ffb347; }
+    #flash { position: fixed; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at center, rgba(0,0,0,0) 40%, rgba(120, 20, 160, 0.55) 100%); transition: opacity 0.35s; }
+    #flash.on { opacity: 1; transition: none; }
+    #help { position: fixed; bottom: 10px; left: 12px; font-size: 13px; opacity: 0.75; pointer-events: none; }
+    #overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(8, 4, 18, 0.72); }
+    #overlay.hidden { display: none; }
+    #panel { max-width: 460px; text-align: center; padding: 28px 34px; background: rgba(28, 16, 48, 0.92); border: 1px solid rgba(255, 190, 90, 0.5); border-radius: 16px; }
+    #panel h1 { margin: 0 0 6px; font-size: 30px; color: #ffb347; }
+    #panel p { margin: 8px 0; line-height: 1.45; }
+    #panel button { margin-top: 14px; padding: 10px 26px; font-size: 18px; border-radius: 10px; border: 0; background: #ffb347; color: #2a1708; cursor: pointer; }
+    #panel button:hover { background: #ffc873; }
+    #panel .keys { font-size: 14px; opacity: 0.85; }
+  </style>
+</head>
+<body>
+  <canvas id="game" tabindex="0"></canvas>
+  <div id="hud">
+    <div class="chip">Lửa: <b id="hud-flames">3</b></div>
+    <div class="chip">Đom đóm: <b id="hud-carried">0</b>/<span id="hud-cap">5</span></div>
+    <div class="chip">Đèn: <b id="hud-lanterns">0</b>/<span id="hud-lanterns-total">5</span></div>
+    <div class="chip">Điểm: <b id="hud-score">0</b></div>
+    <div class="chip">Còn lại: <b id="hud-time">180</b>s</div>
+  </div>
+  <div id="flash"></div>
+  <div id="help">WASD đi · Space nhảy · E nạp đèn · F phát sáng · Mũi tên trái/phải hoặc kéo chuột để xoay · R chơi lại</div>
+  <div id="overlay">
+    <div id="panel">
+      <h1 id="ov-title">Đảo Đèn Lồng</h1>
+      <p id="ov-text">Đêm 1 – Đảo Bến. Sương đen đã nuốt ánh sáng của đảo. Hãy gom đom đóm, thắp lại cả 5 Đèn Lồng Lớn và tránh Bóng Mực.</p>
+      <p class="keys" id="ov-keys">WASD: đi · Space: nhảy · E: nạp đom đóm vào đèn · F: phát sáng đẩy bóng (tốn 1 đom đóm) · Mũi tên trái/phải hoặc kéo chuột: xoay camera</p>
+      <button id="ov-btn">Bắt đầu</button>
+    </div>
+  </div>
+  <script src="main.js"></script>
+</body>
+</html>

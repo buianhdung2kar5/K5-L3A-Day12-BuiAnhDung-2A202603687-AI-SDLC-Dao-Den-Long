@@ -1,0 +1,355 @@
+{
+  "_note": "Expected values below are computed BY HAND from game.contract.json tuning (speed 6 m/s = 0.1 m/tick, shade 3 m/s = 0.05 m/tick, invuln 90 ticks, cooldown 60 ticks, stun 180 ticks, etc.). Never paste them from game output.",
+  "cases": [
+    {
+      "name": "pickup_mote",
+      "covers": ["R2"],
+      "why": "Mote 0.5 m away (<= pickup_radius 1.0) is picked on tick 1; +10 score.",
+      "args": { "seed": 1, "ticks": 3 },
+      "scenario": { "random_motes": false, "random_shades": false, "motes": [[0.5, 0]] },
+      "expect": {
+        "events": [{ "tick": 1, "name": "mote_picked", "data": { "carried": 1 } }],
+        "end": { "ticks": 3, "state": "playing", "score": 10 }
+      }
+    },
+    {
+      "name": "pickup_out_of_range_and_full",
+      "covers": ["R2"],
+      "why": "Mote at 1.5 m (> 1.0) is ignored; with carried = capacity (5) a near mote is ignored too.",
+      "args": { "seed": 1, "ticks": 5 },
+      "scenario": {
+        "random_motes": false,
+        "random_shades": false,
+        "player": { "carried": 5 },
+        "motes": [[0.5, 0], [1.5, 0]]
+      },
+      "expect": {
+        "events": [],
+        "end": { "ticks": 5, "state": "playing", "score": 0 },
+        "snapshots": [{ "tick": 5, "match": { "motes_active": 2, "player": { "carried": 5 } } }]
+      },
+      "snapshot_every": 5
+    },
+    {
+      "name": "deposit_and_light",
+      "covers": ["R3"],
+      "why": "Carrying 5 = lantern_cost at 1 m from L1; interact on tick 2 (event tick 3) deposits 5 and lights L1; +100.",
+      "args": { "seed": 1, "ticks": 5 },
+      "scenario": {
+        "random_motes": false,
+        "random_shades": false,
+        "player": { "pos": [14, 0], "carried": 5 },
+        "motes": []
+      },
+      "inputs": { "frames": [{ "tick": 2, "interact": true }, { "tick": 3, "interact": false }] },
+      "expect": {
+        "events": [
+          { "tick": 3, "name": "deposit", "data": { "lantern_id": "L1", "amount": 5, "deposited": 5 } },
+          { "tick": 3, "name": "lantern_lit", "data": { "lantern_id": "L1" } }
+        ],
+        "end": { "ticks": 5, "state": "playing", "score": 100 }
+      }
+    },
+    {
+      "name": "deposit_partial",
+      "covers": ["R3"],
+      "why": "Carrying 3 deposits 3, lantern not lit, no lantern_lit, score 0.",
+      "args": { "seed": 1, "ticks": 4 },
+      "scenario": {
+        "random_motes": false,
+        "random_shades": false,
+        "player": { "pos": [14, 0], "carried": 3 },
+        "motes": []
+      },
+      "inputs": { "frames": [{ "tick": 0, "interact": true }] },
+      "expect": {
+        "events": [{ "tick": 1, "name": "deposit", "data": { "lantern_id": "L1", "amount": 3, "deposited": 3 } }],
+        "end": { "ticks": 4, "state": "playing", "score": 0 }
+      }
+    },
+    {
+      "name": "deposit_out_of_range",
+      "covers": ["R3"],
+      "why": "Player 3 m from L1 (> interact_radius 2.5): interact does nothing.",
+      "args": { "seed": 1, "ticks": 3 },
+      "scenario": {
+        "random_motes": false,
+        "random_shades": false,
+        "player": { "pos": [12, 0], "carried": 5 },
+        "motes": []
+      },
+      "inputs": { "frames": [{ "tick": 0, "interact": true }] },
+      "expect": { "events": [], "end": { "ticks": 3, "state": "playing", "score": 0 } }
+    },
+    {
+      "name": "win_all_lit",
+      "covers": ["R4", "R10"],
+      "why": "L2..L5 pre-lit (no points). Lighting L1 on tick 1: 100 + 1*floor(100 - 1/60 = 99.98 -> 99) + 50*3 flames = 349. Game stops at tick 1.",
+      "args": { "seed": 1, "ticks": 100 },
+      "scenario": {
+        "random_motes": false,
+        "random_shades": false,
+        "time_left_s": 100,
+        "player": { "pos": [14, 0], "carried": 5 },
+        "motes": [],
+        "lanterns": [
+          { "id": "L2", "lit": true },
+          { "id": "L3", "lit": true },
+          { "id": "L4", "lit": true },
+          { "id": "L5", "lit": true }
+        ]
+      },
+      "inputs": { "frames": [{ "tick": 0, "interact": true }] },
+      "expect": {
+        "events": [
+          { "tick": 1, "name": "deposit", "data": { "lantern_id": "L1", "amount": 5, "deposited": 5 } },
+          { "tick": 1, "name": "lantern_lit", "data": { "lantern_id": "L1" } },
+          { "tick": 1, "name": "game_over", "data": { "result": "won", "reason": "all_lit" } }
+        ],
+        "end": { "ticks": 1, "state": "won", "score": 349 }
+      }
+    },
+    {
+      "name": "shade_hits_until_lost",
+      "covers": ["R5", "R6"],
+      "why": "Shade 0.5 m away, player carries 4. Hit tick 1: flames 2, drop floor(4*0.5)=2. Invuln 90 ticks -> next hit tick 91: flames 1, carried 2 -> drop 1. Tick 181: flames 0, carried 1 -> drop 0, game over no_flames.",
+      "args": { "seed": 1, "ticks": 300 },
+      "scenario": {
+        "random_motes": false,
+        "random_shades": false,
+        "player": { "carried": 4 },
+        "motes": [],
+        "shades": [{ "id": "A", "pos": [0.5, 0.5, 0] }]
+      },
+      "expect": {
+        "events": [
+          { "tick": 1, "name": "player_hit", "data": { "by": "shade", "flames": 2, "dropped": 2 } },
+          { "tick": 91, "name": "player_hit", "data": { "by": "shade", "flames": 1, "dropped": 1 } },
+          { "tick": 181, "name": "player_hit", "data": { "by": "shade", "flames": 0, "dropped": 0 } },
+          { "tick": 181, "name": "game_over", "data": { "result": "lost", "reason": "no_flames" } }
+        ],
+        "end": { "ticks": 181, "state": "lost", "score": 0 }
+      }
+    },
+    {
+      "name": "dawn_loss",
+      "covers": ["R7"],
+      "why": "time_left_s 0.05 = 3 ticks; at tick 3 the night ends: lost / dawn.",
+      "args": { "seed": 1, "ticks": 10 },
+      "scenario": { "random_motes": false, "random_shades": false, "time_left_s": 0.05, "motes": [] },
+      "expect": {
+        "events": [{ "tick": 3, "name": "game_over", "data": { "result": "lost", "reason": "dawn" } }],
+        "end": { "ticks": 3, "state": "lost", "score": 0 }
+      }
+    },
+    {
+      "name": "pulse_stuns_in_radius",
+      "covers": ["R8"],
+      "why": "Shade A at 3 m (<= 6) is stunned and pushed 2 m away (x=5); shade B at 10 m is untouched and chases (10 - 5*0.05 = 9.75 at tick 5). Pulse costs 1 carried, +20 per stun.",
+      "args": { "seed": 1, "ticks": 5 },
+      "snapshot_every": 5,
+      "scenario": {
+        "random_motes": false,
+        "random_shades": false,
+        "player": { "carried": 1 },
+        "motes": [],
+        "shades": [
+          { "id": "A", "pos": [3, 0.5, 0] },
+          { "id": "B", "pos": [10, 0.5, 0] }
+        ]
+      },
+      "inputs": { "frames": [{ "tick": 0, "pulse": true }] },
+      "expect": {
+        "events": [{ "tick": 1, "name": "pulse", "data": { "stunned_ids": ["A"] } }],
+        "end": { "ticks": 5, "state": "playing", "score": 20 },
+        "snapshots": [
+          {
+            "tick": 5,
+            "match": {
+              "player": { "carried": 0 },
+              "shades": [
+                { "id": "A", "pos": [5, 0.5, 0], "state": "stunned" },
+                { "id": "B", "pos": [9.75, 0.5, 0], "state": "chasing" }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "pulse_cooldown_and_miss",
+      "covers": ["R8"],
+      "why": "Carry 2. Pulse at tick 0 (event 1) hits nothing but still costs 1. Pulse at tick 10 is within the 60-tick cooldown: ignored. Pulse at tick 70 (event tick 71 >= 61) is allowed, carried -> 0.",
+      "args": { "seed": 1, "ticks": 80 },
+      "snapshot_every": 80,
+      "scenario": { "random_motes": false, "random_shades": false, "player": { "carried": 2 }, "motes": [] },
+      "inputs": {
+        "frames": [
+          { "tick": 0, "pulse": true },
+          { "tick": 1, "pulse": false },
+          { "tick": 10, "pulse": true },
+          { "tick": 11, "pulse": false },
+          { "tick": 70, "pulse": true }
+        ]
+      },
+      "expect": {
+        "events": [
+          { "tick": 1, "name": "pulse", "data": { "stunned_ids": [] } },
+          { "tick": 71, "name": "pulse", "data": { "stunned_ids": [] } }
+        ],
+        "end": { "ticks": 80, "state": "playing", "score": 0 },
+        "snapshots": [{ "tick": 80, "match": { "player": { "carried": 0 } } }]
+      }
+    },
+    {
+      "name": "pulse_without_light",
+      "covers": ["R8"],
+      "why": "carried 0 < pulse_cost 1: pulse does nothing, no event, shade not stunned.",
+      "args": { "seed": 1, "ticks": 3 },
+      "snapshot_every": 3,
+      "scenario": {
+        "random_motes": false,
+        "random_shades": false,
+        "motes": [],
+        "shades": [{ "id": "A", "pos": [3, 0.5, 0] }]
+      },
+      "inputs": { "frames": [{ "tick": 0, "pulse": true }] },
+      "expect": {
+        "events": [],
+        "end": { "ticks": 3, "state": "playing", "score": 0 },
+        "snapshots": [{ "tick": 3, "match": { "shades": [{ "id": "A", "state": "chasing" }] } }]
+      }
+    },
+    {
+      "name": "shade_blocked_by_safe_radius",
+      "covers": ["R9"],
+      "why": "Player stands on L1 (15,0). Shade from x=25 walks 0.05/tick but is stopped at safe_radius 4 -> x = 19 (reached at tick 120; stays there at tick 200).",
+      "args": { "seed": 1, "ticks": 200 },
+      "snapshot_every": 200,
+      "scenario": {
+        "random_motes": false,
+        "random_shades": false,
+        "player": { "pos": [15, 0] },
+        "motes": [],
+        "shades": [{ "id": "A", "pos": [25, 0.5, 0] }]
+      },
+      "expect": {
+        "events": [],
+        "end": { "ticks": 200, "state": "playing", "score": 0 },
+        "snapshots": [{ "tick": 200, "match": { "shades": [{ "id": "A", "pos": [19, 0.5, 0] }] } }]
+      }
+    },
+    {
+      "name": "random_shade_spawn_schedule",
+      "covers": ["R1"],
+      "why": "First spawn at 5 s = tick 300 (id S1), then every 8 s = 480 ticks -> tick 780 (S2).",
+      "args": { "seed": 7, "ticks": 790 },
+      "scenario": { "random_motes": false, "motes": [] },
+      "expect": {
+        "events": [
+          { "tick": 300, "name": "shade_spawned", "data": { "id": "S1" } },
+          { "tick": 780, "name": "shade_spawned", "data": { "id": "S2" } }
+        ],
+        "end": { "ticks": 790, "state": "playing", "score": 0 }
+      }
+    },
+    {
+      "name": "move_yaw_and_normalize",
+      "covers": ["R12"],
+      "why": "move [1,0] with yaw 90 deg -> world (0,-1): after 10 ticks at 0.1 m/tick pos = (0,0,-1).",
+      "args": { "seed": 1, "ticks": 10 },
+      "snapshot_every": 10,
+      "scenario": { "random_motes": false, "random_shades": false, "motes": [] },
+      "inputs": { "frames": [{ "tick": 0, "move": [1, 0], "cam_yaw_deg": 90 }] },
+      "expect": {
+        "events": [],
+        "end": { "ticks": 10, "state": "playing", "score": 0 },
+        "snapshots": [{ "tick": 10, "match": { "player": { "pos": [0, 0, -1] } } }]
+      }
+    },
+    {
+      "name": "move_diagonal_normalized",
+      "covers": ["R12"],
+      "why": "move [1,1] is normalized: 10 ticks * 0.1 m = 1.0 m total -> (0.707, 0, 0.707), not 1.414 m.",
+      "args": { "seed": 1, "ticks": 10 },
+      "snapshot_every": 10,
+      "scenario": { "random_motes": false, "random_shades": false, "motes": [] },
+      "inputs": { "frames": [{ "tick": 0, "move": [1, 1] }] },
+      "expect": {
+        "events": [],
+        "end": { "ticks": 10, "state": "playing", "score": 0 },
+        "snapshots": [{ "tick": 10, "match": { "player": { "pos": [0.707, 0, 0.707] } } }]
+      }
+    },
+    {
+      "name": "jump_first_tick",
+      "covers": ["R12"],
+      "why": "Jump speed 8, gravity 20: tick 1 vy = 8 - 20/60 = 7.6667, y = 7.6667/60 = 0.128.",
+      "args": { "seed": 1, "ticks": 1 },
+      "snapshot_every": 1,
+      "scenario": { "random_motes": false, "random_shades": false, "motes": [] },
+      "inputs": { "frames": [{ "tick": 0, "jump": true }] },
+      "expect": {
+        "events": [],
+        "end": { "ticks": 1, "state": "playing", "score": 0 },
+        "snapshots": [{ "tick": 1, "match": { "player": { "pos": [0, 0.128, 0] } } }]
+      }
+    },
+    {
+      "name": "cli_bad_inputs_non_increasing",
+      "covers": ["R11"],
+      "why": "Frame ticks must strictly increase.",
+      "args": { "seed": 1, "ticks": 5 },
+      "inputs_raw": "{\"frames\":[{\"tick\":3},{\"tick\":2}]}",
+      "expect_exit": 2
+    },
+    {
+      "name": "cli_bad_inputs_move_range",
+      "covers": ["R11"],
+      "why": "move components must be in [-1,1].",
+      "args": { "seed": 1, "ticks": 5 },
+      "inputs_raw": "{\"frames\":[{\"tick\":0,\"move\":[2,0]}]}",
+      "expect_exit": 2
+    },
+    {
+      "name": "cli_inputs_not_json",
+      "covers": ["R11"],
+      "why": "Malformed JSON.",
+      "args": { "seed": 1, "ticks": 5 },
+      "inputs_raw": "{not json",
+      "expect_exit": 2
+    },
+    {
+      "name": "cli_scenario_unknown_lantern",
+      "covers": ["R11"],
+      "why": "Lantern id L9 does not exist.",
+      "args": { "seed": 1, "ticks": 5 },
+      "scenario": { "lanterns": [{ "id": "L9", "lit": true }] },
+      "expect_exit": 2
+    },
+    {
+      "name": "cli_scenario_wrong_type",
+      "covers": ["R11"],
+      "why": "player.carried must be a non-negative integer.",
+      "args": { "seed": 1, "ticks": 5 },
+      "scenario": { "player": { "carried": "many" } },
+      "expect_exit": 2
+    },
+    {
+      "name": "cli_missing_out",
+      "covers": ["R11"],
+      "why": "--out is required.",
+      "args": { "seed": 1, "ticks": 5 },
+      "omit": ["out"],
+      "expect_exit": 2
+    },
+    {
+      "name": "cli_scenario_file_missing",
+      "covers": ["R11"],
+      "why": "Scenario path does not exist.",
+      "args": { "seed": 1, "ticks": 5 },
+      "scenario_path": "does/not/exist.json",
+      "expect_exit": 2
+    }
+  ]
+}
