@@ -39,7 +39,7 @@ function vec(v: unknown, what: string): Vec3 {
   return a.length === 2 ? [a[0], NaN, a[1]] : [a[0], a[1], a[2]];
 }
 
-const SHADE_STATES: ShadeState[] = ["spawning", "wander", "chase", "recoil", "stunned"];
+const SHADE_STATES: ShadeState[] = ["spawning", "wander", "chase", "recoil", "stunned", "drain"];
 const DRIFTER_STATES: DrifterState[] = ["idle", "chase", "flee", "removed"];
 
 function list(v: unknown, what: string): unknown[] {
@@ -55,7 +55,7 @@ export function parseScenario(raw: unknown): Scenario {
     if (!isObj(p)) fail("player must be an object");
     s.player = {};
     if (p.pos !== undefined) s.player.pos = vec(p.pos, "player.pos");
-    for (const k of ["carried", "flames", "invuln_ticks", "dash_cd_ticks", "pulse_cd_ticks", "charm_ticks"] as const) {
+    for (const k of ["carried", "flames", "invuln_ticks", "dash_cd_ticks", "pulse_cd_ticks", "charm_ticks", "successful_lights"] as const) {
       if (p[k] !== undefined) s.player[k] = intNonNeg(p[k], `player.${k}`);
     }
   }
@@ -86,6 +86,7 @@ export function parseScenario(raw: unknown): Scenario {
         out.state = sh.state as ShadeState;
       }
       if (sh.state_ticks_left !== undefined) out.state_ticks_left = intNonNeg(sh.state_ticks_left, `shades[${i}].state_ticks_left`);
+      if (sh.target_lantern_id !== undefined) out.target_lantern_id = str(sh.target_lantern_id, `shades[${i}].target_lantern_id`);
       return out;
     });
   }
@@ -116,9 +117,14 @@ export function parseScenario(raw: unknown): Scenario {
   if (raw.lanterns !== undefined) {
     s.lanterns = list(raw.lanterns, "lanterns").map((l, i) => {
       if (!isObj(l)) fail(`lanterns[${i}] must be an object`);
-      const out: { id: string; pos?: Vec3; lit?: boolean } = { id: str(l.id, `lanterns[${i}].id`) };
+      const out: NonNullable<Scenario["lanterns"]>[number] = { id: str(l.id, `lanterns[${i}].id`) };
       if (l.pos !== undefined) out.pos = vec(l.pos, `lanterns[${i}].pos`);
       if (l.lit !== undefined) out.lit = bool(l.lit, `lanterns[${i}].lit`);
+      if (l.fuel !== undefined) {
+        out.fuel = num(l.fuel, `lanterns[${i}].fuel`);
+        if (out.fuel < 0 || out.fuel > 100) fail(`lanterns[${i}].fuel must be in [0,100]`);
+      }
+      if (l.ever_lit !== undefined) out.ever_lit = bool(l.ever_lit, `lanterns[${i}].ever_lit`);
       return out;
     });
   }

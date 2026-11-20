@@ -54,4 +54,7 @@ export const K = {
   windTicks: 300,
   windSpeed: 2,
   towerTop: 14,
+  drainRange: 2, // a shade this close (XZ) to a weak lit lantern drains it
+  drainChase: 6, // a draining shade chases Mây when she is this close
+  capacityPerLight: 2,
 };

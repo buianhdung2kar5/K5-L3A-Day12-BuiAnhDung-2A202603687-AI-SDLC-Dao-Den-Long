@@ -36,15 +36,15 @@ const PAL = {
 const C = (hex: string): Color3 => Color3.FromHexString(hex);
 
 // ---------------------------------------------------------------- settings (persisted in localStorage)
-interface Settings { volume: number; sens: number }
+interface Settings { volume: number; sens: number; cb: boolean }
 const SETTINGS_KEY = "ddl.settings.v1";
 const clamp = (v: number, a: number, b: number): number => Math.min(b, Math.max(a, v));
 function loadSettings(): Settings {
   try {
     const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? "null");
-    if (s && typeof s.volume === "number" && typeof s.sens === "number") return { volume: clamp(s.volume, 0, 1), sens: clamp(s.sens, 0.05, 1) };
+    if (s && typeof s.volume === "number" && typeof s.sens === "number") return { volume: clamp(s.volume, 0, 1), sens: clamp(s.sens, 0.05, 1), cb: s.cb === true };
   } catch { /* ignore */ }
-  return { volume: 0.7, sens: 0.35 };
+  return { volume: 0.7, sens: 0.35, cb: false };
 }
 const settings = loadSettings();
 const saveSettings = (): void => {
@@ -146,7 +146,7 @@ function padDisc(x: number, y: number, z: number): void {
   reg(d); reg(ring);
 }
 
-interface LanternView { body: Mesh; core: Mesh; light: PointLight; zone: Mesh; lit: boolean }
+interface LanternView { body: Mesh; core: Mesh; light: PointLight; zone: Mesh; bar: Mesh; fill: Mesh; cracks: Mesh[]; lit: boolean }
 let lanternViews: LanternView[] = [];
 
 function buildNight(map: NightMap): void {
@@ -242,8 +242,27 @@ function buildNight(map: NightMap): void {
     light.diffuse = C(PAL.lampOn);
     light.range = 26;
     light.intensity = 0;
-    reg(pole); reg(body); reg(core); reg(zone);
-    lanternViews.push({ body, core, light, zone, lit: false });
+    // fuel bar above a lit lantern (billboard) and torn-paper cracks on an unlit one (readable without colour)
+    const bar = MeshBuilder.CreatePlane("fuelbar", { width: 1.9, height: 0.24 }, scene);
+    bar.position.set(l.pos[0], l.pos[1] + 5.0, l.pos[2]);
+    bar.billboardMode = Mesh.BILLBOARDMODE_ALL;
+    bar.material = mat("#0c1030", "#0c1030", 0.85);
+    bar.setEnabled(false);
+    const fill = MeshBuilder.CreatePlane("fuelfill", { width: 1.8, height: 0.15 }, scene);
+    fill.parent = bar;
+    fill.position.z = -0.01;
+    fill.material = mat(PAL.gold, PAL.lampOn);
+    const cracks: Mesh[] = [];
+    for (const [cx, cy, cz, rz] of [[0.55, 0.15, 0.6, 0.5], [-0.5, -0.1, 0.65, -0.4], [0.05, 0.3, -0.8, 0.2]] as const) {
+      const c = MeshBuilder.CreateBox("crack", { width: 0.05, height: 0.6, depth: 0.05 }, scene);
+      c.parent = body;
+      c.position.set(cx, cy, cz);
+      c.rotation.z = rz;
+      c.material = mat("#15151f");
+      cracks.push(c);
+    }
+    reg(pole); reg(body); reg(core); reg(zone); reg(bar); reg(fill);
+    lanternViews.push({ body, core, light, zone, bar, fill, cracks, lit: false });
   });
 }
 
@@ -256,7 +275,18 @@ const shadeMats = {
   body: mat(PAL.shadeBody, PAL.shadeRim, 1, 0.25),
   stun: mat(PAL.shadeStun, PAL.shadeStun, 0.75, 0.8),
   rim: mat(PAL.shadeRim, PAL.shadeRim, 0.3, 0.9),
+  eye: mat("#000000", PAL.shadeRim),
 };
+/** "Bảng màu dễ phân biệt" (Ticket-03): shade rim and eyes #7A3CFF -> #00B3FF, UI warning colour -> white + warning sign. */
+function applyColorMode(): void {
+  const rim = settings.cb ? "#00B3FF" : PAL.shadeRim;
+  shadeMats.body.emissiveColor = C(rim).scale(0.25);
+  shadeMats.rim.diffuseColor = C(rim);
+  shadeMats.rim.emissiveColor = C(rim).scale(0.9);
+  shadeMats.eye.emissiveColor = C(rim);
+  document.body.classList.toggle("cb", settings.cb);
+}
+applyColorMode();
 interface ShadeView { root: TransformNode; body: Mesh; rim: Mesh }
 const shadeViews = new Map<string, ShadeView>();
 interface DrifterView { root: TransformNode; mats: StandardMaterial }
@@ -360,9 +390,9 @@ function backFromSettings(): void {
   showPanel(settingsReturn);
 }
 const INTRO: Record<number, { name: string; quote: string; goal: string }> = {
-  1: { name: "Đảo Bến", quote: "Ông Đăng: “Cháu à, sương đen đã nuốt hết ánh sáng của Đảo Bến. Hãy gom đom đóm và thắp lại năm ngọn Đèn Lồng Lớn.”", goal: "Thắp 5 đèn trong 5:00. Mỗi đèn cần 10 đom đóm." },
-  2: { name: "Đảo Cau", quote: "Ông Đăng: “Hai hòn đảo nối nhau bằng chiếc cầu tre mong manh, không lan can đâu. Gió Lạc thích cướp đom đóm của cháu lắm, nhớ nhờ bục nhảy mà qua đảo.”", goal: "Thắp 6 đèn trong 5:30. Bùa Gió giúp chạy nhanh và lướt liên tục." },
-  3: { name: "Đảo Chuông", quote: "Ông Đăng: “Đây là hòn đảo cuối, nơi treo chiếc chuông cổ. Cẩn thận gió mạnh và những bậc thang cheo leo. Thắp đủ bảy ngọn, bình minh sẽ đến.”", goal: "Thắp 7 đèn trong 6:00. Leo dốc hoặc dùng bục nhảy để lên các tầng." },
+  1: { name: "Đảo Bến", quote: "Ông Đăng: “Cháu à, sương đen đã nuốt hết ánh sáng của Đảo Bến. Hãy gom đom đóm, thắp và giữ cho các Đèn Lồng Lớn cháy tới sáng. Bóng Mực sẽ tới hút dầu đấy.”", goal: "Giữ ít nhất 3/5 đèn sáng tới bình minh (4:00). Đèn mới cần 10 đom đóm, thắp lại chỉ cần 5. Đèn hao 1 dầu mỗi giây: nạp đom đóm để châm dầu." },
+  2: { name: "Đảo Cau", quote: "Ông Đăng: “Hai hòn đảo nối nhau bằng chiếc cầu tre mong manh, không lan can đâu. Gió Lạc thích cướp đom đóm của cháu lắm, nhớ nhờ bục nhảy mà qua đảo.”", goal: "Giữ ít nhất 4/6 đèn sáng tới bình minh (4:30). Bùa Gió giúp chạy nhanh và lướt liên tục." },
+  3: { name: "Đảo Chuông", quote: "Ông Đăng: “Đây là hòn đảo cuối, nơi treo chiếc chuông cổ. Cẩn thận gió mạnh và những bậc thang cheo leo. Thắp đủ bảy ngọn, bình minh sẽ đến.”", goal: "Giữ ít nhất 5/7 đèn sáng tới bình minh (5:00). Leo dốc hoặc dùng bục nhảy để lên các tầng." },
 };
 function enterIntro(n: number): void {
   currentNight = n;
@@ -443,15 +473,20 @@ volEl.value = String(Math.round(settings.volume * 100));
 sensEl.value = String(Math.round(settings.sens * 100));
 volEl.addEventListener("input", () => { settings.volume = Number(volEl.value) / 100; audio.setVolume(settings.volume); saveSettings(); });
 sensEl.addEventListener("input", () => { settings.sens = Number(sensEl.value) / 100; saveSettings(); });
+const cbEl = $<HTMLInputElement>("set-cb");
+cbEl.checked = settings.cb;
+cbEl.addEventListener("change", () => { settings.cb = cbEl.checked; saveSettings(); applyColorMode(); });
 
 // ---------------------------------------------------------------- HUD
 const flames = [$("fl0"), $("fl1"), $("fl2")];
 const bar = $("hud-bar");
-for (let i = 0; i < TUNING.carry_capacity; i++) { const s = document.createElement("div"); s.className = "slot"; bar.appendChild(s); }
+for (let i = 0; i < TUNING.capacity_max; i++) { const s = document.createElement("div"); s.className = "slot"; bar.appendChild(s); }
 const slots = Array.from(bar.children) as HTMLElement[];
 let hudKey = "";
 let lastTickSec = -1;
 let windWarned = false;
+/** Lanterns that must be lit at dawn: ceil(win_ratio * total). */
+const needLit = (): number => Math.ceil(Math.round(TUNING.win_ratio * sim.lanterns.length * 1e9) / 1e9);
 const fmtClock = (s: number): string => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
 function cooldownIcon(id: string, nid: string, frac: number, total: number, label: string, dim: boolean): void {
@@ -468,11 +503,14 @@ function updateHud(): void {
   const secs = Math.max(0, Math.ceil(sim.timeLeftS));
   const dashFrac = p.charm > 0 ? 0 : p.dashCd / (TUNING.dash_cooldown_s * K.tps);
   const pulseFrac = p.pulseCd / (TUNING.pulse_cooldown_s * K.tps);
-  const key = `${p.flames}|${p.carried}|${lit}|${sim.score}|${secs}|${Math.ceil(p.dashCd / 6)}|${Math.ceil(p.pulseCd / 6)}|${p.charm > 0}`;
+  const key = `${sim.capacity}|${p.flames}|${p.carried}|${lit}|${sim.score}|${secs}|${Math.ceil(p.dashCd / 6)}|${Math.ceil(p.pulseCd / 6)}|${p.charm > 0}`;
   if (key !== hudKey) {
     hudKey = key;
     flames.forEach((f, i) => f.classList.toggle("off", i >= p.flames));
-    slots.forEach((s, i) => s.classList.toggle("on", i < p.carried));
+    slots.forEach((s, i) => { s.classList.toggle("on", i < p.carried); s.classList.toggle("locked", i >= sim.capacity); });
+    $("hud-carried").textContent = String(p.carried);
+    $("hud-cap").textContent = String(sim.capacity);
+    $("hud-need").textContent = String(needLit());
     $("hud-lanterns").textContent = `${lit}/${sim.lanterns.length}`;
     $("hud-score").textContent = String(sim.score);
     $("hud-clock").textContent = fmtClock(secs);
@@ -480,17 +518,21 @@ function updateHud(): void {
     cooldownIcon("hud-dash", "hud-dash-n", dashFrac, TUNING.dash_cooldown_s, "Shift", false);
     cooldownIcon("hud-pulse", "hud-pulse-n", pulseFrac, TUNING.pulse_cooldown_s, "F", p.carried < TUNING.pulse_cost);
   }
-  // "E - nap anh sang (x/10)" near an unlit lantern; arrow to the nearest unlit lantern when off screen
+  // prompt for the nearest lantern Mây can use (unlit: deposit, lit but not full: refuel); arrow to the nearest unlit lantern
+  let usable: { l: (typeof sim.lanterns)[number]; d: number } | null = null;
   let near: { l: (typeof sim.lanterns)[number]; d: number } | null = null;
   for (const l of sim.lanterns) {
-    if (l.lit) continue;
     const d = Math.hypot(l.pos[0] - p.pos[0], l.pos[2] - p.pos[2]);
-    if (!near || d < near.d) near = { l, d };
+    if (!l.lit && (!near || d < near.d)) near = { l, d };
+    if ((!l.lit || l.fuelU < TUNING.fuel_max * K.tps) && (!usable || d < usable.d)) usable = { l, d };
   }
   const prompt = $("hud-prompt");
-  if (near && near.d <= TUNING.interact_radius) {
+  if (usable && usable.d <= TUNING.interact_radius) {
     prompt.style.display = "block";
-    $("hud-prompt-x").textContent = String(near.l.deposited);
+    const u = usable.l;
+    $("hud-prompt-text").textContent = u.lit ? "E — Châm dầu" : "E — Nạp ánh sáng";
+    $("hud-prompt-x").textContent = String(u.lit ? Math.round(u.fuelU / K.tps) : u.deposited);
+    $("hud-prompt-y").textContent = String(u.lit ? TUNING.fuel_max : u.everLit ? TUNING.relight_cost : TUNING.lantern_cost);
   } else prompt.style.display = "none";
   const arrow = $("hud-arrow");
   if (near) {
@@ -538,6 +580,8 @@ function handleEvents(events: ReturnType<Sim["step"]>): void {
       case "charm_picked": audio.play("charm"); break;
       case "drifter_steal": audio.play("steal"); break;
       case "drifter_drop": audio.play("pick"); break;
+      case "refuel": audio.play("pick"); break;
+      case "lantern_out": audio.play("hit"); break;
       case "game_over": onGameOver(ev.data.result === "won", String(ev.data.reason)); break;
       case "paused": showPanel("p-pause"); break;
       case "resumed": showPanel(null); break;
@@ -549,10 +593,11 @@ function onGameOver(won: boolean, reason: string): void {
   flow = "result";
   audio.stopMusic();
   audio.play(won ? "win" : "lose");
+  const litNow = sim.lanterns.filter((l) => l.lit).length;
   const why: Record<string, string> = {
-    all_lit: "Tất cả Đèn Lồng Lớn đã sáng. Đảo được cứu!",
+    dawn_survived: `Bình minh đã tới! Đảo còn ${litNow}/${sim.lanterns.length} đèn sáng.`,
     no_flames: "Ngọn Lửa của Mây đã tắt.",
-    dawn: "Trời đã sáng mà vẫn còn đèn chưa được thắp.",
+    dawn: `Trời sáng nhưng chỉ còn ${litNow}/${sim.lanterns.length} đèn sáng (cần ${needLit()}).`,
   };
   if (won) totalScore += sim.score;
   $("res-title").textContent = won ? `Đêm ${currentNight} hoàn thành!` : "Thua rồi";
@@ -608,25 +653,35 @@ function syncScene(dt: number): void {
   // lanterns; ambient light = 0.15 + 0.55 * lit / total
   const litCount = sim.lanterns.filter((l) => l.lit).length;
   hemi.intensity = 0.15 + 0.55 * (litCount / Math.max(1, sim.lanterns.length));
+  const blinkOn = Math.floor(tNow * 2) % 2 === 0; // 1 Hz
   sim.lanterns.forEach((l, i) => {
     const v = lanternViews[i];
     if (!v) return;
     const bm = v.body.material as StandardMaterial;
+    const fuel = l.fuelU / K.tps;
+    const low = l.lit && fuel < TUNING.low_fuel_threshold;
     if (v.lit !== l.lit) {
       v.lit = l.lit;
       bm.diffuseColor = C(l.lit ? PAL.lampOn : PAL.lampOff);
       bm.emissiveColor = C(l.lit ? PAL.lampOn : "#000000");
       v.core.setEnabled(l.lit);
-      v.zone.setEnabled(l.lit);
-      v.light.intensity = l.lit ? 1.5 : 0;
     } else if (!l.lit && l.deposited > 0) {
-      bm.emissiveColor = Color3.Lerp(C("#000000"), C(PAL.lampOn), (l.deposited / TUNING.lantern_cost) * 0.6);
+      bm.emissiveColor = Color3.Lerp(C("#000000"), C(PAL.lampOn), (l.deposited / (l.everLit ? TUNING.relight_cost : TUNING.lantern_cost)) * 0.6);
     }
+    v.body.scaling.y = l.lit ? 1 : 0.8; // an unlit lantern is squashed to 80%
+    v.cracks.forEach((c) => c.setEnabled(!l.lit));
+    v.zone.setEnabled(l.lit && fuel >= TUNING.low_fuel_threshold);
+    v.bar.setEnabled(l.lit && (!low || blinkOn));
+    v.body.visibility = low && !blinkOn ? 0.35 : 1;
+    v.fill.scaling.x = Math.max(0.02, fuel / TUNING.fuel_max);
+    v.fill.position.x = -0.9 * (1 - v.fill.scaling.x);
+    (v.fill.material as StandardMaterial).emissiveColor = C(low ? PAL.scarf : PAL.lampOn);
+    v.light.intensity = l.lit ? 0.5 + 1.0 * (fuel / TUNING.fuel_max) : 0;
   });
   for (let i = lightBursts.length - 1; i >= 0; i--) {
     const b = lightBursts[i];
     b.age += dt;
-    b.v.light.intensity = 1.5 + Math.max(0, 1 - b.age / 0.8) * 5;
+    b.v.light.intensity += Math.max(0, 1 - b.age / 0.8) * 5;
     if (b.age > 0.8) lightBursts.splice(i, 1);
   }
 
@@ -673,6 +728,12 @@ function syncScene(dt: number): void {
       body.parent = root;
       rim.parent = root;
       rim.material = shadeMats.rim;
+      for (const ex of [-0.28, 0.28]) {
+        const eye = MeshBuilder.CreateSphere("eye", { diameter: 0.3 }, scene);
+        eye.position.set(ex, 0.18, 0.66);
+        eye.material = shadeMats.eye;
+        eye.parent = root;
+      }
       v = { root, body, rim };
       shadeViews.set(s.id, v);
     }
@@ -682,6 +743,8 @@ function syncScene(dt: number): void {
     const w = 1 + Math.sin(tNow * 5 + s.pos[0]) * 0.08;
     const grow = s.state === "spawning" ? 0.35 + 0.65 * (1 - s.left / K.shadeSpawningTicks) : 1;
     v.root.scaling.set(w * grow, (1.25 / w) * grow, w * grow);
+    v.root.rotation.y = Math.atan2(p.pos[0] - s.pos[0], p.pos[2] - s.pos[2]);
+    v.rim.scaling.setAll(s.state === "drain" ? 1 + 0.12 * Math.sin(tNow * 10) : 1);
   }
   for (const [id, v] of shadeViews) if (!aliveS.has(id)) { v.root.dispose(); shadeViews.delete(id); }
 

@@ -25,10 +25,21 @@ export interface Tuning {
   dash_duration_s: number;
   dash_cooldown_s: number;
   fall_enabled: boolean;
+  fuel_max: number;
+  fuel_decay_per_s: number;
+  fuel_per_mote: number;
+  relight_cost: number;
+  win_ratio: number;
+  drain_per_s: number;
+  low_fuel_threshold: number;
+  capacity_max: number;
   score: {
     per_mote: number;
     per_lantern: number;
+    per_relight: number;
     per_stun: number;
+    per_stun_drain: number;
+    per_lit_dawn: number;
     per_second_left: number;
     per_flame_left: number;
   };
@@ -58,7 +69,7 @@ export interface InputFrame {
   pause?: boolean;
 }
 
-export type ShadeState = "spawning" | "wander" | "chase" | "recoil" | "stunned";
+export type ShadeState = "spawning" | "wander" | "chase" | "recoil" | "stunned" | "drain";
 export type DrifterState = "idle" | "chase" | "flee" | "removed";
 
 export interface ScenarioMote {
@@ -77,16 +88,17 @@ export interface Scenario {
     dash_cd_ticks?: number;
     pulse_cd_ticks?: number;
     charm_ticks?: number;
+    successful_lights?: number;
   };
   random_motes?: boolean;
   random_shades?: boolean;
   random_drifters?: boolean;
   wind_enabled?: boolean;
   motes?: ScenarioMote[];
-  shades?: { id?: string; pos: Vec3; state?: ShadeState; state_ticks_left?: number }[];
+  shades?: { id?: string; pos: Vec3; state?: ShadeState; state_ticks_left?: number; target_lantern_id?: string }[];
   drifters?: { id?: string; pos: Vec3; state?: DrifterState; stolen?: number; state_ticks_left?: number }[];
   charms?: { id?: string; pos: Vec3; available?: boolean; respawn_ticks?: number }[];
-  lanterns?: { id: string; pos?: Vec3; lit?: boolean }[];
+  lanterns?: { id: string; pos?: Vec3; lit?: boolean; fuel?: number; ever_lit?: boolean }[];
   time_left_s?: number;
 }
 

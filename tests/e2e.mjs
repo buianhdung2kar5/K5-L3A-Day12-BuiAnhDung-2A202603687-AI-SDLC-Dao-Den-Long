@@ -1,6 +1,6 @@
 // End-to-end check of the REAL web game in a real (headless) Chrome with real key presses.
 // Needs Chrome/Chromium (CHROME_PATH or a default location) and `npm run build` first.
-// Writes docs/proof/phase2/e2e-results.md and screenshots to docs/proof/phase2/screens/.
+// Writes docs/proof/phase3/e2e-results.md and screenshots to docs/proof/phase3/screens/.
 import puppeteer from "puppeteer-core";
 import { spawn, execSync } from "node:child_process";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
@@ -9,7 +9,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const shots = join(root, "docs", "proof", "phase2", "screens");
+const shots = join(root, "docs", "proof", "phase3", "screens");
 mkdirSync(shots, { recursive: true });
 const PORT = 8123;
 const base = `http://localhost:${PORT}/`;
@@ -85,7 +85,7 @@ await test("menu_intro_play_flow", "S19", "Menu -> Bắt đầu -> intro of Nigh
   await waitFor(page, () => window.__game.flow === "play" && window.__game.sim.tick > 5);
 });
 
-await test("walk_deposit_light_hud", "S5,S19", "Walk with W to L1, press E: lantern lights, HUD shows 1/5 and score 200 (10 motes x10 + 100).", async (page) => {
+await test("walk_deposit_light_hud", "S5,S19", "Walk with W to L1, press E: lantern lights, HUD shows 1/5 and score 150 (10 motes x5 + 100).", async (page) => {
   await page.goto(url(1, { player: { pos: [0, 20], carried: 10 } }));
   await ready(page);
   await page.keyboard.down("w");
@@ -95,7 +95,7 @@ await test("walk_deposit_light_hud", "S5,S19", "Walk with W to L1, press E: lant
   await waitFor(page, () => window.__game.sim.lanterns[0].lit);
   await sleep(200);
   const hud = { lit: await text(page, "hud-lanterns"), score: await text(page, "hud-score") };
-  if (hud.lit !== "1/5" || hud.score !== "200") throw new Error("HUD wrong: " + JSON.stringify(hud));
+  if (hud.lit !== "1/5" || hud.score !== "150") throw new Error("HUD wrong: " + JSON.stringify(hud));
   await page.screenshot({ path: join(shots, "e2e-lantern-lit.png") });
 });
 
@@ -235,13 +235,12 @@ await test("night3_renders", "S14,S19", "Night 3 loads with its tiers, tower and
   await page.screenshot({ path: join(shots, "e2e-night3.png") });
 });
 
-await test("win_night1_to_night2", "S19,S10", "Win Night 1 -> result 'Đêm 1 hoàn thành' -> 'Đêm kế tiếp' -> intro Night 2 -> play with 6 lanterns; score carried into the total.", async (page) => {
-  await page.goto(url(1, { player: { pos: [0, 24], carried: 10 }, lanterns: ["L2", "L3", "L4", "L5"].map((id) => ({ id, lit: true })) }));
-  await ready(page);
-  await page.keyboard.press("e");
-  await waitFor(page, () => window.__game.flow === "result");
+await test("dawn_survived_night1_to_night2", "S19,T3", "Night 1: with 3 of 5 lanterns lit the Night is won only at dawn (no early win): result 'Đêm 1 hoàn thành' -> 'Đêm kế tiếp' -> intro Night 2 -> play with 6 lanterns.", async (page) => {
+  await page.goto(url(1, { time_left_s: 0.5, lanterns: ["L1", "L2", "L3"].map((id) => ({ id, lit: true })) }));
+  await waitFor(page, () => window.__game && window.__game.flow === "result", 25000);
   await sleep(200);
   if (!(await text(page, "res-title")).includes("Đêm 1 hoàn thành")) throw new Error("result title wrong");
+  if (!(await text(page, "res-text")).includes("3/5")) throw new Error("result text wrong: " + (await text(page, "res-text")));
   await page.screenshot({ path: join(shots, "e2e-win.png") });
   const total = await page.evaluate(() => window.__game.total);
   if (!(total > 500)) throw new Error("total score not accumulated: " + total);
@@ -251,16 +250,72 @@ await test("win_night1_to_night2", "S19,S10", "Win Night 1 -> result 'Đêm 1 ho
   await waitFor(page, () => window.__game.flow === "play" && window.__game.night === 2 && window.__game.sim.lanterns.length === 6);
 });
 
-await test("win_night3_shows_dawn", "S19", "Win Night 3 -> 'Xem Bình Minh' -> Bình Minh screen with the total score.", async (page) => {
-  await page.goto(url(3, { player: { pos: [0, 6], carried: 10 }, lanterns: ["L2", "L3", "L4", "L5", "L6", "L7"].map((id) => ({ id, lit: true })) }));
-  await ready(page);
-  await page.keyboard.press("e");
-  await waitFor(page, () => window.__game.flow === "result");
+await test("below_threshold_loses_at_dawn", "T3", "Only 2 of 5 lanterns lit at dawn: 'Thua rồi' with 'cần 3' in the text.", async (page) => {
+  await page.goto(url(1, { time_left_s: 0.5, lanterns: ["L1", "L2"].map((id) => ({ id, lit: true })) }));
+  await waitFor(page, () => window.__game && window.__game.flow === "result", 25000);
+  if (!(await text(page, "res-title")).includes("Thua")) throw new Error("lose title wrong");
+  if (!(await text(page, "res-text")).includes("cần 3")) throw new Error("need not shown");
+});
+
+await test("win_night3_shows_dawn", "S19,T3", "Night 3 needs 5 of 7: win at dawn -> 'Xem Bình Minh' -> Bình Minh screen with the total score.", async (page) => {
+  await page.goto(url(3, { time_left_s: 0.5, lanterns: ["L1", "L2", "L3", "L4", "L5"].map((id) => ({ id, lit: true })) }));
+  await waitFor(page, () => window.__game && window.__game.flow === "result", 25000);
   await page.click("#btn-next");
   if (!(await visible(page, "p-dawn"))) throw new Error("dawn screen not shown");
   const score = Number(await text(page, "dawn-score"));
   if (!(score > 500)) throw new Error("dawn total score wrong: " + score);
   await page.screenshot({ path: join(shots, "e2e-dawn.png") });
+});
+
+await test("refuel_with_e_and_prompt", "T1", "Lit lantern at fuel 40: prompt shows 'Châm dầu'; E refuels to 100, carried 10 -> 3, HUD shows the new count and capacity.", async (page) => {
+  await page.goto(url(1, { player: { pos: [0, 24], carried: 10 }, lanterns: [{ id: "L1", lit: true, fuel: 40 }] }));
+  await ready(page);
+  await sleep(200);
+  if (!(await text(page, "hud-prompt-text")).includes("Châm dầu")) throw new Error("refuel prompt missing");
+  await page.screenshot({ path: join(shots, "e2e-fuel-prompt.png") });
+  await page.keyboard.press("e");
+  await waitFor(page, () => window.__game.sim.lanterns[0].fuelU >= 5990);
+  await sleep(200);
+  if ((await text(page, "hud-carried")) !== "3" || (await text(page, "hud-cap")) !== "10") throw new Error("HUD carried/capacity wrong");
+});
+
+await test("lantern_out_then_relight_5", "T1,T2,T4", "A lantern with almost no fuel goes out; relighting it costs 5 fireflies, and capacity grows 10 -> 12 on a successful lighting.", async (page) => {
+  await page.goto(url(1, { player: { pos: [0, 24], carried: 5 }, lanterns: [{ id: "L1", lit: true, fuel: 0.1 }] }));
+  await ready(page);
+  await waitFor(page, () => window.__game.sim.lanterns[0].lit === false, 5000);
+  await page.keyboard.press("e");
+  await waitFor(page, () => window.__game.sim.lanterns[0].lit === true, 5000);
+  const info = await sim(page, "[s.lanterns[0].relit, s.capacity, s.score]");
+  if (info[0] !== 1 || info[1] !== 12 || info[2] !== 65) throw new Error("relight result wrong: " + JSON.stringify(info));
+  await sleep(200);
+  if ((await text(page, "hud-cap")) !== "12") throw new Error("HUD capacity not updated");
+});
+
+await test("shade_walks_to_weak_lantern_and_drains", "T2", "A wandering shade picks the weak lit lantern, stops within 2 m and enters the drain state; the fuel bar shows a falling value.", async (page) => {
+  await page.goto(url(1, { player: { pos: [0, 12] }, lanterns: [{ id: "L1", lit: true, fuel: 20.05 }], shades: [{ id: "A", pos: [0, 0.5, 29.9], state: "wander" }] }));
+  await ready(page);
+  await waitFor(page, () => window.__game.sim.shades[0].state === "drain", 20000);
+  const f0 = await sim(page, "s.lanterns[0].fuelU");
+  await sleep(500);
+  const f1 = await sim(page, "s.lanterns[0].fuelU");
+  if (!(f1 < f0 - 3)) throw new Error(`fuel not draining fast enough: ${f0} -> ${f1}`);
+  await page.screenshot({ path: join(shots, "e2e-drain.png") });
+});
+
+await test("colour_blind_setting_persists", "T6", "Setting 'Bảng màu dễ phân biệt' switches the palette (body.cb) and is restored after reload.", async (page) => {
+  await page.goto(`${base}?seed=3`);
+  await waitFor(page, () => window.__game);
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  await waitFor(page, () => window.__game);
+  await page.click("#btn-menu-settings");
+  await page.click("#set-cb");
+  if (!(await page.evaluate(() => document.body.classList.contains("cb")))) throw new Error("body.cb not set");
+  await page.screenshot({ path: join(shots, "e2e-colourblind-settings.png") });
+  await page.reload();
+  await waitFor(page, () => window.__game);
+  const st = await page.evaluate(() => [document.body.classList.contains("cb"), document.getElementById("set-cb").checked]);
+  if (!st[0] || !st[1]) throw new Error("setting not restored: " + JSON.stringify(st));
 });
 
 await test("lose_and_replay_key", "S10", "A shade next to Mây with 1 flame: 'Thua rồi'; Chơi lại Đêm restarts; R restarts during play.", async (page) => {
@@ -332,7 +387,7 @@ try {
 } catch {}
 const failed = results.filter((r) => !r.ok).length;
 const md = [
-  "# Phase 2 end-to-end results (real browser, real key presses)",
+  "# Phase 3 end-to-end results (real browser, real key presses)",
   "",
   `Generated by \`npm run e2e\` (tests/e2e.mjs). Commit: ${commit}${dirty}. ${new Date().toISOString()}.`,
   `Machine: ${cpus()[0].model}, ${cpus().length} threads, ${platform()} ${release()}, Node ${process.version}, Chrome headless (puppeteer-core).`,
@@ -354,6 +409,6 @@ const md = [
   "Not covered: mouse-drag camera rotation, audio output (no sound device in the test browser), long play sessions, other GPUs.",
   "",
 ].join("\n");
-writeFileSync(join(root, "docs", "proof", "phase2", "e2e-results.md"), md);
+writeFileSync(join(root, "docs", "proof", "phase3", "e2e-results.md"), md);
 console.log(`\n${results.length - failed}/${results.length} e2e passed`);
 process.exit(failed ? 1 : 0);

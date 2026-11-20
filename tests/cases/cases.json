@@ -508,12 +508,13 @@
    "covers": [
     "S5"
    ],
-   "why": "Carrying 10 = lantern_cost next to L1 (0,0,25): interact on tick 2 deposits 10 and lights it. Score 10*10 + 100 = 200.",
+   "why": "Carrying 10 = lantern_cost next to L1 (0,0,25): interact on tick 2 deposits 10 and lights it. Score 10*5 + 100 = 150; capacity grows to 12.",
    "args": {
     "seed": 1,
     "ticks": 5,
     "night": 1
    },
+   "snapshot_every": 5,
    "scenario": {
     "random_motes": false,
     "random_shades": false,
@@ -562,8 +563,18 @@
     "end": {
      "ticks": 5,
      "state": "playing",
-     "score": 200
-    }
+     "score": 150
+    },
+    "snapshots": [
+     {
+      "tick": 5,
+      "match": {
+       "player": {
+        "capacity": 12
+       }
+      }
+     }
+    ]
    }
   },
   {
@@ -571,7 +582,7 @@
    "covers": [
     "S5"
    ],
-   "why": "Deposit 3, walk and pick 7 more (tick 18), deposit 7: lantern remembers progress (3+7=10) and lights. Score 30+70+100 = 200.",
+   "why": "Deposit 3, walk and pick 7 more (tick 18), deposit 7: lantern remembers progress (3+7=10) and lights. Score 30/2... = 5*10 + 100 = 150.",
    "args": {
     "seed": 1,
     "ticks": 22,
@@ -724,7 +735,7 @@
     "end": {
      "ticks": 22,
      "state": "playing",
-     "score": 200
+     "score": 150
     }
    }
   },
@@ -837,7 +848,7 @@
     "end": {
      "ticks": 3,
      "state": "playing",
-     "score": 200
+     "score": 150
     }
    }
   },
@@ -915,309 +926,7 @@
     "end": {
      "ticks": 3,
      "state": "playing",
-     "score": 200
-    }
-   }
-  },
-  {
-   "name": "deposit_skips_lit_lanterns",
-   "covers": [
-    "S5"
-   ],
-   "why": "Only unlit lanterns are considered: lit L1 (1.0 m) is skipped, unlit L2 (1.9 m) gets the deposit.",
-   "args": {
-    "seed": 1,
-    "ticks": 3,
-    "night": 1
-   },
-   "scenario": {
-    "random_motes": false,
-    "random_shades": false,
-    "random_drifters": false,
-    "wind_enabled": false,
-    "motes": [],
-    "player": {
-     "carried": 10
-    },
-    "lanterns": [
-     {
-      "id": "L1",
-      "pos": [
-       1.0,
-       0
-      ],
-      "lit": true
-     },
-     {
-      "id": "L2",
-      "pos": [
-       1.9,
-       0
-      ]
-     }
-    ]
-   },
-   "inputs": {
-    "frames": [
-     {
-      "tick": 0,
-      "interact": true
-     }
-    ]
-   },
-   "expect": {
-    "events": [
-     {
-      "tick": 1,
-      "name": "deposit",
-      "data": {
-       "lantern_id": "L2",
-       "amount": 10,
-       "deposited": 10
-      }
-     },
-     {
-      "tick": 1,
-      "name": "lantern_lit",
-      "data": {
-       "lantern_id": "L2"
-      }
-     }
-    ],
-    "end": {
-     "ticks": 3,
-     "state": "playing",
-     "score": 200
-    }
-   }
-  },
-  {
-   "name": "win_all_lit",
-   "covers": [
-    "S10"
-   ],
-   "why": "L2..L5 pre-lit (no points). Lighting L1 on tick 1: 100 (10 motes) + 100 (lantern) + 2*floor(99.98)=198 + 50*3 flames = 548.",
-   "args": {
-    "seed": 1,
-    "ticks": 100,
-    "night": 1
-   },
-   "scenario": {
-    "random_motes": false,
-    "random_shades": false,
-    "random_drifters": false,
-    "wind_enabled": false,
-    "motes": [],
-    "time_left_s": 100,
-    "player": {
-     "pos": [
-      0,
-      24
-     ],
-     "carried": 10
-    },
-    "lanterns": [
-     {
-      "id": "L2",
-      "lit": true
-     },
-     {
-      "id": "L3",
-      "lit": true
-     },
-     {
-      "id": "L4",
-      "lit": true
-     },
-     {
-      "id": "L5",
-      "lit": true
-     }
-    ]
-   },
-   "inputs": {
-    "frames": [
-     {
-      "tick": 0,
-      "interact": true
-     }
-    ]
-   },
-   "expect": {
-    "events": [
-     {
-      "tick": 1,
-      "name": "deposit",
-      "data": {
-       "lantern_id": "L1",
-       "amount": 10,
-       "deposited": 10
-      }
-     },
-     {
-      "tick": 1,
-      "name": "lantern_lit",
-      "data": {
-       "lantern_id": "L1"
-      }
-     },
-     {
-      "tick": 1,
-      "name": "game_over",
-      "data": {
-       "result": "won",
-       "reason": "all_lit"
-      }
-     }
-    ],
-    "end": {
-     "ticks": 1,
-     "state": "won",
-     "score": 548
-    }
-   }
-  },
-  {
-   "name": "win_on_timeout_tick",
-   "covers": [
-    "S10"
-   ],
-   "why": "All lit on exactly the last tick (time_left 0.05 s = 3 ticks) is still a win: 100+100+2*0+150 = 350.",
-   "args": {
-    "seed": 1,
-    "ticks": 10,
-    "night": 1
-   },
-   "scenario": {
-    "random_motes": false,
-    "random_shades": false,
-    "random_drifters": false,
-    "wind_enabled": false,
-    "motes": [],
-    "time_left_s": 0.05,
-    "player": {
-     "pos": [
-      0,
-      24
-     ],
-     "carried": 10
-    },
-    "lanterns": [
-     {
-      "id": "L2",
-      "lit": true
-     },
-     {
-      "id": "L3",
-      "lit": true
-     },
-     {
-      "id": "L4",
-      "lit": true
-     },
-     {
-      "id": "L5",
-      "lit": true
-     }
-    ]
-   },
-   "inputs": {
-    "frames": [
-     {
-      "tick": 2,
-      "interact": true
-     }
-    ]
-   },
-   "expect": {
-    "events": [
-     {
-      "tick": 3,
-      "name": "deposit",
-      "data": {
-       "lantern_id": "L1",
-       "amount": 10,
-       "deposited": 10
-      }
-     },
-     {
-      "tick": 3,
-      "name": "lantern_lit",
-      "data": {
-       "lantern_id": "L1"
-      }
-     },
-     {
-      "tick": 3,
-      "name": "game_over",
-      "data": {
-       "result": "won",
-       "reason": "all_lit"
-      }
-     }
-    ],
-    "end": {
-     "ticks": 3,
-     "state": "won",
-     "score": 350
-    }
-   }
-  },
-  {
-   "name": "prelit_all_wins_without_points",
-   "covers": [
-    "S10"
-   ],
-   "why": "All 5 lanterns pre-lit: win on tick 1, no lantern points: 2*floor(299.98)=598 + 150 = 748.",
-   "args": {
-    "seed": 1,
-    "ticks": 10,
-    "night": 1
-   },
-   "scenario": {
-    "random_motes": false,
-    "random_shades": false,
-    "random_drifters": false,
-    "wind_enabled": false,
-    "motes": [],
-    "lanterns": [
-     {
-      "id": "L1",
-      "lit": true
-     },
-     {
-      "id": "L2",
-      "lit": true
-     },
-     {
-      "id": "L3",
-      "lit": true
-     },
-     {
-      "id": "L4",
-      "lit": true
-     },
-     {
-      "id": "L5",
-      "lit": true
-     }
-    ]
-   },
-   "expect": {
-    "events": [
-     {
-      "tick": 1,
-      "name": "game_over",
-      "data": {
-       "result": "won",
-       "reason": "all_lit"
-      }
-     }
-    ],
-    "end": {
-     "ticks": 1,
-     "state": "won",
-     "score": 748
+     "score": 150
     }
    }
   },
@@ -2169,7 +1878,7 @@
     "end": {
      "ticks": 85,
      "state": "playing",
-     "score": 200
+     "score": 150
     },
     "snapshots": [
      {
@@ -4993,7 +4702,7 @@
    "covers": [
     "S16"
    ],
-   "why": "Pause at tick 11 (paused), resume at tick 31. While paused tick advances but sim_tick (10), time and position (z=0.75) stay; snapshot state paused. After resume sim_tick 11, z=0.85.",
+   "why": "Pause at tick 11 (paused), resume at tick 31. While paused tick advances but sim_tick (10), time (240 - 10/60 = 239.833) and position (z=0.75) stay; snapshot state paused. After resume sim_tick 11, z=0.85.",
    "args": {
     "seed": 1,
     "ticks": 31,
@@ -5073,7 +4782,7 @@
        "state": "paused",
        "tick": 20,
        "sim_tick": 10,
-       "time_left_s": 299.833,
+       "time_left_s": 239.833,
        "player": {
         "pos": [
          0,
@@ -5113,7 +4822,7 @@
     "S1",
     "S0"
    ],
-   "why": "Night 1: 5 lanterns at the ticket coordinates, start (0,0,0), 300 s, 20 fireflies, nothing else, night_start event on tick 1.",
+   "why": "Night 1: 5 lanterns at the ticket coordinates, start (0,0,0), 240 s, 20 fireflies, nothing else, night_start event on tick 1.",
    "args": {
     "seed": 1,
     "ticks": 1,
@@ -5144,7 +4853,7 @@
       "tick": 0,
       "match": {
        "night": 1,
-       "time_left_s": 300,
+       "time_left_s": 240,
        "player": {
         "pos": [
          0,
@@ -5224,7 +4933,7 @@
     "S1",
     "S0"
    ],
-   "why": "Night 2: 6 lanterns (two islands), 330 s, charm C1 at (35,0,0), night_start {night:2}.",
+   "why": "Night 2: 6 lanterns (two islands), 270 s, charm C1 at (35,0,0), night_start {night:2}.",
    "args": {
     "seed": 1,
     "ticks": 1,
@@ -5255,7 +4964,7 @@
       "tick": 0,
       "match": {
        "night": 2,
-       "time_left_s": 330,
+       "time_left_s": 270,
        "player": {
         "pos": [
          0,
@@ -5332,7 +5041,7 @@
     "S1",
     "S0"
    ],
-   "why": "Night 3: 7 lanterns on three tiers, 360 s, charms C1 (30,0,25) and C2 (-30,0,25), start (0,0,-20).",
+   "why": "Night 3: 7 lanterns on three tiers, 300 s, charms C1 (30,0,25) and C2 (-30,0,25), start (0,0,-20).",
    "args": {
     "seed": 1,
     "ticks": 1,
@@ -5363,7 +5072,7 @@
       "tick": 0,
       "match": {
        "night": 3,
-       "time_left_s": 360,
+       "time_left_s": 300,
        "player": {
         "pos": [
          0,
@@ -5444,6 +5153,2118 @@
      }
     ]
    }
+  },
+  {
+   "name": "refuel_nearest_not_full_lantern",
+   "covers": [
+    "T1"
+   ],
+   "why": "Lit lanterns lose fuel every tick, so lit L1 (1.0 m) is no longer full when Mây interacts: it is nearer than unlit L2 (1.9 m) and gets 1 firefly (ceil(1/600 units)=1): refuel amount 1, fuel back to 100, +5.",
+   "args": {
+    "seed": 1,
+    "ticks": 3,
+    "night": 1
+   },
+   "snapshot_every": 3,
+   "scenario": {
+    "random_motes": false,
+    "random_shades": false,
+    "random_drifters": false,
+    "wind_enabled": false,
+    "motes": [],
+    "player": {
+     "carried": 10
+    },
+    "lanterns": [
+     {
+      "id": "L1",
+      "pos": [
+       1.0,
+       0
+      ],
+      "lit": true
+     },
+     {
+      "id": "L2",
+      "pos": [
+       1.9,
+       0
+      ]
+     }
+    ]
+   },
+   "inputs": {
+    "frames": [
+     {
+      "tick": 0,
+      "interact": true
+     }
+    ]
+   },
+   "expect": {
+    "events": [
+     {
+      "tick": 1,
+      "name": "refuel",
+      "data": {
+       "lantern_id": "L1",
+       "amount": 1,
+       "fuel": 100
+      }
+     }
+    ],
+    "end": {
+     "ticks": 3,
+     "state": "playing",
+     "score": 5
+    },
+    "snapshots": [
+     {
+      "tick": 3,
+      "match": {
+       "player": {
+        "carried": 9
+       }
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "all_lit_does_not_end_the_night",
+   "covers": [
+    "T3"
+   ],
+   "why": "All 5 lanterns lit does NOT end the Night any more (no early win): still playing at tick 100, score 0.",
+   "args": {
+    "seed": 1,
+    "ticks": 100,
+    "night": 1
+   },
+   "snapshot_every": 100,
+   "scenario": {
+    "random_motes": false,
+    "random_shades": false,
+    "random_drifters": false,
+    "wind_enabled": false,
+    "motes": [],
+    "time_left_s": 100,
+    "lanterns": [
+     {
+      "id": "L1",
+      "lit": true
+     },
+     {
+      "id": "L2",
+      "lit": true
+     },
+     {
+      "id": "L3",
+      "lit": true
+     },
+     {
+      "id": "L4",
+      "lit": true
+     },
+     {
+      "id": "L5",
+      "lit": true
+     }
+    ]
+   },
+   "expect": {
+    "events": [],
+    "end": {
+     "ticks": 100,
+     "state": "playing",
+     "score": 0
+    },
+    "snapshots": [
+     {
+      "tick": 100,
+      "match": {
+       "state": "playing"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "dawn_survived_win_and_bonus",
+   "covers": [
+    "T3",
+    "T5"
+   ],
+   "why": "Dawn at tick 3 with 3 of 5 lanterns lit (need ceil(0.6*5)=3): won dawn_survived. Bonus per lit lantern 50 + floor(fuel): fuel 5997/60 = 99.95 -> 99 -> 149 each = 447, + 50*3 flames = 597. No time bonus.",
+   "args": {
+    "seed": 1,
+    "ticks": 10,
+    "night": 1
+   },
+   "scenario": {
+    "random_motes": false,
+    "random_shades": false,
+    "random_drifters": false,
+    "wind_enabled": false,
+    "motes": [],
+    "time_left_s": 0.05,
+    "lanterns": [
+     {
+      "id": "L1",
+      "lit": true
+     },
+     {
+      "id": "L2",
+      "lit": true
+     },
+     {
+      "id": "L3",
+      "lit": true
+     }
+    ]
+   },
+   "expect": {
+    "events": [
+     {
+      "tick": 3,
+      "name": "game_over",
+      "data": {
+       "result": "won",
+       "reason": "dawn_survived"
+      }
+     }
+    ],
+    "end": {
+     "ticks": 3,
+     "state": "won",
+     "score": 597
+    }
+   }
+  },
+  {
+   "name": "dawn_below_threshold_loses",
+   "covers": [
+    "T3"
+   ],
+   "why": "Only 2 of 5 lit at dawn (< 3): lost dawn, no bonus.",
+   "args": {
+    "seed": 1,
+    "ticks": 10,
+    "night": 1
+   },
+   "scenario": {
+    "random_motes": false,
+    "random_shades": false,
+    "random_drifters": false,
+    "wind_enabled": false,
+    "motes": [],
+    "time_left_s": 0.05,
+    "lanterns": [
+     {
+      "id": "L1",
+      "lit": true
+     },
+     {
+      "id": "L2",
+      "lit": true
+     }
+    ]
+   },
+   "expect": {
+    "events": [
+     {
+      "tick": 3,
+      "name": "game_over",
+      "data": {
+       "result": "lost",
+       "reason": "dawn"
+      }
+     }
+    ],
+    "end": {
+     "ticks": 3,
+     "state": "lost",
+     "score": 0
+    }
+   }
+  },
+  {
+   "name": "dawn_bonus_uses_each_lanterns_fuel",
+   "covers": [
+    "T5"
+   ],
+   "why": "L1 lit with fuel 50 -> 2997/60 = 49.95 -> 49 + 50 = 99; two full lanterns 149 each; + 150 flames = 547.",
+   "args": {
+    "seed": 1,
+    "ticks": 10,
+    "night": 1
+   },
+   "scenario": {
+    "random_motes": false,
+    "random_shades": false,
+    "random_drifters": false,
+    "wind_enabled": false,
+    "motes": [],
+    "time_left_s": 0.05,
+    "lanterns": [
+     {
+      "id": "L1",
+      "lit": true,
+      "fuel": 50
+     },
+     {
+      "id": "L2",
+      "lit": true
+     },
+     {
+      "id": "L3",
+      "lit": true
+     }
+    ]
+   },
+   "expect": {
+    "events": [
+     {
+      "tick": 3,
+      "name": "game_over",
+      "data": {
+       "result": "won",
+       "reason": "dawn_survived"
+      }
+     }
+    ],
+    "end": {
+     "ticks": 3,
+     "state": "won",
+     "score": 547
+    }
+   }
+  },
+  {
+   "name": "threshold_night2_needs_4_of_6",
+   "covers": [
+    "T3"
+   ],
+   "why": "Night 2: ceil(0.6*6)=4. 3 lit -> lost dawn; 4 lit -> won dawn_survived.",
+   "args": {
+    "seed": 1,
+    "ticks": 10,
+    "night": 2
+   },
+   "scenario": {
+    "random_motes": false,
+    "random_shades": false,
+    "random_drifters": false,
+    "wind_enabled": false,
+    "motes": [],
+    "time_left_s": 0.05,
+    "lanterns": [
+     {
+      "id": "L1",
+      "lit": true
+     },
+     {
+      "id": "L2",
+      "lit": true
+     },
+     {
+      "id": "L3",
+      "lit": true
+     }
+    ]
+   },
+   "expect": {
+    "events": [
+     {
+      "tick": 3,
+      "name": "game_over",
+      "data": {
+       "result": "lost",
+       "reason": "dawn"
+      }
+     }
+    ],
+    "end": {
+     "ticks": 3,
+     "state": "lost",
+     "score": 0
+    }
+   }
+  },
+  {
+   "name": "threshold_night2_4_lit_wins",
+   "covers": [
+    "T3"
+   ],
+   "why": "Night 2 with 4 lit: won.",
+   "args": {
+    "seed": 1,
+    "ticks": 10,
+    "night": 2
+   },
+   "scenario": {
+    "random_motes": false,
+    "random_shades": false,
+    "random_drifters": false,
+    "wind_enabled": false,
+    "motes": [],
+    "time_left_s": 0.05,
+    "lanterns": [
+     {
+      "id": "L1",
+      "lit": true
+     },
+     {
+      "id": "L2",
+      "lit": true
+     },
+     {
+      "id": "L3",
+      "lit": true
+     },
+     {
+      "id": "L4",
+      "lit": true
+     }
+    ]
+   },
+   "expect": {
+    "events": [
+     {
+      "tick": 3,
+      "name": "game_over",
+      "data": {
+       "result": "won",
+       "reason": "dawn_survived"
+      }
+     }
+    ],
+    "end": {
+     "ticks": 3,
+     "state": "won"
+    }
+   }
+  },
+  {
+   "name": "threshold_night3_needs_5_of_7",
+   "covers": [
+    "T3"
+   ],
+   "why": "Night 3: ceil(0.6*7)=5. 4 lit -> lost dawn.",
+   "args": {
+    "seed": 1,
+    "ticks": 10,
+    "night": 3
+   },
+   "scenario": {
+    "random_motes": false,
+    "random_shades": false,
+    "random_drifters": false,
+    "wind_enabled": false,
+    "motes": [],
+    "time_left_s": 0.05,
+    "lanterns": [
+     {
+      "id": "L1",
+      "lit": true
+     },
+     {
+      "id": "L2",
+      "lit": true
+     },
+     {
+      "id": "L3",
+      "lit": true
+     },
+     {
+      "id": "L4",
+      "lit": true
+     }
+    ]
+   },
+   "expect": {
+    "events": [
+     {
+      "tick": 3,
+      "name": "game_over",
+      "data": {
+       "result": "lost",
+       "reason": "dawn"
+      }
+     }
+    ],
+    "end": {
+     "ticks": 3,
+     "state": "lost",
+     "score": 0
+    }
+   }
+  },
+  {
+   "name": "threshold_night3_5_lit_wins",
+   "covers": [
+    "T3"
+   ],
+   "why": "Night 3 with 5 lit: won.",
+   "args": {
+    "seed": 1,
+    "ticks": 10,
+    "night": 3
+   },
+   "scenario": {
+    "random_motes": false,
+    "random_shades": false,
+    "random_drifters": false,
+    "wind_enabled": false,
+    "motes": [],
+    "time_left_s": 0.05,
+    "lanterns": [
+     {
+      "id": "L1",
+      "lit": true
+     },
+     {
+      "id": "L2",
+      "lit": true
+     },
+     {
+      "id": "L3",
+      "lit": true
+     },
+     {
+      "id": "L4",
+      "lit": true
+     },
+     {
+      "id": "L5",
+      "lit": true
+     }
+    ]
+   },
+   "expect": {
+    "events": [
+     {
+      "tick": 3,
+      "name": "game_over",
+      "data": {
+       "result": "won",
+       "reason": "dawn_survived"
+      }
+     }
+    ],
+    "end": {
+     "ticks": 3,
+     "state": "won"
+    }
+   }
+  },
+  {
+   "name": "light_on_last_tick_counts",
+   "covers": [
+    "T3"
+   ],
+   "why": "Lighting L1 on the very last tick (3) makes 4 lit: won dawn_survived. Score: 10 motes*5 + 100 + bonuses (L2-L4: 149 each = 447, L1 just lit fuel 100 -> 150) + 150 flames = 897.",
+   "args": {
+    "seed": 1,
+    "ticks": 10,
+    "night": 1
+   },
+   "scenario": {
+    "random_motes": false,
+    "random_shades": false,
+    "random_drifters": false,
+    "wind_enabled": false,
+    "motes": [],
+    "time_left_s": 0.05,
+    "player": {
+     "pos": [
+      0,
+      24
+     ],
+     "carried": 10
+    },
+    "lanterns": [
+     {
+      "id": "L2",
+      "lit": true
+     },
+     {
+      "id": "L3",
+      "lit": true
+     },
+     {
+      "id": "L4",
+      "lit": true
+     }
+    ]
+   },
+   "inputs": {
+    "frames": [
+     {
+      "tick": 2,
+      "interact": true
+     }
+    ]
+   },
+   "expect": {
+    "events": [
+     {
+      "tick": 3,
+      "name": "deposit",
+      "data": {
+       "lantern_id": "L1",
+       "amount": 10,
+       "deposited": 10
+      }
+     },
+     {
+      "tick": 3,
+      "name": "lantern_lit",
+      "data": {
+       "lantern_id": "L1",
+       "relight": false
+      }
+     },
+     {
+      "tick": 3,
+      "name": "game_over",
+      "data": {
+       "result": "won",
+       "reason": "dawn_survived"
+      }
+     }
+    ],
+    "end": {
+     "ticks": 3,
+     "state": "won",
+     "score": 897
+    }
+   }
+  },
+  {
+   "name": "no_flames_beats_dawn_survived",
+   "covers": [
+    "T3"
+   ],
+   "why": "Dawn reached with enough lit lanterns, but the last flame is lost on that same tick: no_flames wins.",
+   "args": {
+    "seed": 1,
+    "ticks": 10,
+    "night": 1
+   },
+   "scenario": {
+    "random_motes": false,
+    "random_shades": false,
+    "random_drifters": false,
+    "wind_enabled": false,
+    "motes": [],
+    "time_left_s": 0.016666666666666666,
+    "player": {
+     "flames": 1
+    },
+    "lanterns": [
+     {
+      "id": "L1",
+      "lit": true
+     },
+     {
+      "id": "L2",
+      "lit": true
+     },
+     {
+      "id": "L3",
+      "lit": true
+     }
+    ],
+    "shades": [
+     {
+      "id": "A",
+      "pos": [
+       0.5,
+       0.5,
+       0
+      ]
+     }
+    ]
+   },
+   "expect": {
+    "events": [
+     {
+      "tick": 1,
+      "name": "player_hit",
+      "data": {
+       "by": "shade",
+       "flames": 0,
+       "dropped": 0
+      }
+     },
+     {
+      "tick": 1,
+      "name": "game_over",
+      "data": {
+       "result": "lost",
+       "reason": "no_flames"
+      }
+     }
+    ],
+    "end": {
+     "ticks": 1,
+     "state": "lost",
+     "score": 0
+    }
+   }
+  },
+  {
+   "name": "fuel_decays_one_per_second",
+   "covers": [
+    "T1"
+   ],
+   "why": "Scenario-lit lantern gets fuel 100 by default and ever_lit true. It loses 1 per second: 99 at tick 60, 90 at tick 600.",
+   "args": {
+    "seed": 1,
+    "ticks": 600,
+    "night": 1
+   },
+   "snapshot_every": 60,
+   "scenario": {
+    "random_motes": false,
+    "random_shades": false,
+    "random_drifters": false,
+    "wind_enabled": false,
+    "motes": [],
+    "lanterns": [
+     {
+      "id": "L1",
+      "lit": true
+     }
+    ]
+   },
+   "expect": {
+    "events": [],
+    "end": {
+     "ticks": 600,
+     "state": "playing",
+     "score": 0
+    },
+    "snapshots": [
+     {
+      "tick": 0,
+      "match": {
+       "lanterns": [
+        {
+         "id": "L1",
+         "lit": true,
+         "fuel": 100,
+         "ever_lit": true,
+         "relit_count": 0
+        },
+        {},
+        {},
+        {},
+        {}
+       ]
+      }
+     },
+     {
+      "tick": 60,
+      "match": {
+       "lanterns": [
+        {
+         "fuel": 99
+        },
+        {},
+        {},
+        {},
+        {}
+       ]
+      }
+     },
+     {
+      "tick": 600,
+      "match": {
+       "lanterns": [
+        {
+         "fuel": 90
+        },
+        {},
+        {},
+        {},
+        {}
+       ]
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "lighting_sets_fuel_100",
+   "covers": [
+    "T1"
+   ],
+   "why": "First lighting: fuel 100 at the moment of lighting (tick 1); 58 decay ticks later (tick 59) fuel = 5942/60 = 99.0. Before lighting: fuel 0, ever_lit false.",
+   "args": {
+    "seed": 1,
+    "ticks": 60,
+    "night": 1
+   },
+   "snapshot_every": 59,
+   "scenario": {
+    "random_motes": false,
+    "random_shades": false,
+    "random_drifters": false,
+    "wind_enabled": false,
+    "motes": [],
+    "player": {
+     "pos": [
+      0,
+      24
+     ],
+     "carried": 10
+    }
+   },
+   "inputs": {
+    "frames": [
+     {
+      "tick": 0,
+      "interact": true
+     },
+     {
+      "tick": 1,
+      "interact": false
+     }
+    ]
+   },
+   "expect": {
+    "events": [
+     {
+      "tick": 1,
+      "name": "deposit",
+      "data": {
+       "lantern_id": "L1",
+       "amount": 10,
+       "deposited": 10
+      }
+     },
+     {
+      "tick": 1,
+      "name": "lantern_lit",
+      "data": {
+       "lantern_id": "L1",
+       "relight": false
+      }
+     }
+    ],
+    "end": {
+     "ticks": 60,
+     "state": "playing",
+     "score": 150
+    },
+    "snapshots": [
+     {
+      "tick": 0,
+      "match": {
+       "lanterns": [
+        {
+         "fuel": 0,
+         "ever_lit": false,
+         "lit": false
+        },
+        {},
+        {},
+        {},
+        {}
+       ]
+      }
+     },
+     {
+      "tick": 59,
+      "match": {
+       "lanterns": [
+        {
+         "lit": true,
+         "fuel": 99,
+         "ever_lit": true,
+         "relit_count": 0
+        },
+        {},
+        {},
+        {},
+        {}
+       ]
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "lantern_goes_out_when_fuel_is_empty",
+   "covers": [
+    "T1"
+   ],
+   "why": "fuel 0.05 = 3 units: it burns out at tick 3: lantern_out, lit false, deposited 0, ever_lit stays true.",
+   "args": {
+    "seed": 1,
+    "ticks": 5,
+    "night": 1
+   },
+   "snapshot_every": 1,
+   "scenario": {
+    "random_motes": false,
+    "random_shades": false,
+    "random_drifters": false,
+    "wind_enabled": false,
+    "motes": [],
+    "lanterns": [
+     {
+      "id": "L1",
+      "lit": true,
+      "fuel": 0.05
+     }
+    ]
+   },
+   "expect": {
+    "events": [
+     {
+      "tick": 3,
+      "name": "lantern_out",
+      "data": {
+       "lantern_id": "L1"
+      }
+     }
+    ],
+    "end": {
+     "ticks": 5,
+     "state": "playing",
+     "score": 0
+    },
+    "snapshots": [
+     {
+      "tick": 2,
+      "match": {
+       "lanterns": [
+        {
+         "lit": true
+        },
+        {},
+        {},
+        {},
+        {}
+       ]
+      }
+     },
+     {
+      "tick": 3,
+      "match": {
+       "lanterns": [
+        {
+         "lit": false,
+         "fuel": 0,
+         "deposited": 0,
+         "ever_lit": true
+        },
+        {},
+        {},
+        {},
+        {}
+       ]
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "relight_needs_only_5_motes",
+   "covers": [
+    "T2",
+    "T5"
+   ],
+   "why": "A lantern that was lit before needs 5 motes: deposit 5 -> lantern_lit relight=true. Score 5*5 + 40 = 65, relit_count 1, fuel 100, capacity 10 + 2 = 12.",
+   "args": {
+    "seed": 1,
+    "ticks": 2,
+    "night": 1
+   },
+   "snapshot_every": 1,
+   "scenario": {
+    "random_motes": false,
+    "random_shades": false,
+    "random_drifters": false,
+    "wind_enabled": false,
+    "motes": [],
+    "player": {
+     "pos": [
+      0,
+      24
+     ],
+     "carried": 5
+    },
+    "lanterns": [
+     {
+      "id": "L1",
+      "lit": false,
+      "ever_lit": true
+     }
+    ]
+   },
+   "inputs": {
+    "frames": [
+     {
+      "tick": 0,
+      "interact": true
+     }
+    ]
+   },
+   "expect": {
+    "events": [
+     {
+      "tick": 1,
+      "name": "deposit",
+      "data": {
+       "lantern_id": "L1",
+       "amount": 5,
+       "deposited": 5
+      }
+     },
+     {
+      "tick": 1,
+      "name": "lantern_lit",
+      "data": {
+       "lantern_id": "L1",
+       "relight": true
+      }
+     }
+    ],
+    "end": {
+     "ticks": 2,
+     "state": "playing",
+     "score": 65
+    },
+    "snapshots": [
+     {
+      "tick": 1,
+      "match": {
+       "player": {
+        "capacity": 12
+       },
+       "lanterns": [
+        {
+         "lit": true,
+         "fuel": 100,
+         "ever_lit": true,
+         "relit_count": 1
+        },
+        {},
+        {},
+        {},
+        {}
+       ]
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "refuel_full_amount",
+   "covers": [
+    "T1"
+   ],
+   "why": "Lit L1 at fuel 40 (2400 units; 2399 after this tick's decay): used = min(10, ceil(3601/600)=7) = 7 fireflies; fuel back to 100; +35; carried 3; capacity unchanged.",
+   "args": {
+    "seed": 1,
+    "ticks": 3,
+    "night": 1
+   },
+   "snapshot_every": 1,
+   "scenario": {
+    "random_motes": false,
+    "random_shades": false,
+    "random_drifters": false,
+    "wind_enabled": false,
+    "motes": [],
+    "player": {
+     "pos": [
+      0,
+      24
+     ],
+     "carried": 10
+    },
+    "lanterns": [
+     {
+      "id": "L1",
+      "lit": true,
+      "fuel": 40
+     }
+    ]
+   },
+   "inputs": {
+    "frames": [
+     {
+      "tick": 0,
+      "interact": true
+     }
+    ]
+   },
+   "expect": {
+    "events": [
+     {
+      "tick": 1,
+      "name": "refuel",
+      "data": {
+       "lantern_id": "L1",
+       "amount": 7,
+       "fuel": 100
+      }
+     }
+    ],
+    "end": {
+     "ticks": 3,
+     "state": "playing",
+     "score": 35
+    },
+    "snapshots": [
+     {
+      "tick": 1,
+      "match": {
+       "player": {
+        "carried": 3,
+        "capacity": 10
+       },
+       "lanterns": [
+        {
+         "fuel": 100
+        },
+        {},
+        {},
+        {},
+        {}
+       ]
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "refuel_partial",
+   "covers": [
+    "T1"
+   ],
+   "why": "Only 2 fireflies: fuel (2399 + 1200)/60 = 59.98 -> 60.0; +10; carried 0.",
+   "args": {
+    "seed": 1,
+    "ticks": 3,
+    "night": 1
+   },
+   "scenario": {
+    "random_motes": false,
+    "random_shades": false,
+    "random_drifters": false,
+    "wind_enabled": false,
+    "motes": [],
+    "player": {
+     "pos": [
+      0,
+      24
+     ],
+     "carried": 2
+    },
+    "lanterns": [
+     {
+      "id": "L1",
+      "lit": true,
+      "fuel": 40
+     }
+    ]
+   },
+   "inputs": {
+    "frames": [
+     {
+      "tick": 0,
+      "interact": true
+     }
+    ]
+   },
+   "expect": {
+    "events": [
+     {
+      "tick": 1,
+      "name": "refuel",
+      "data": {
+       "lantern_id": "L1",
+       "amount": 2,
+       "fuel": 60
+      }
+     }
+    ],
+    "end": {
+     "ticks": 3,
+     "state": "playing",
+     "score": 10
+    }
+   }
+  },
+  {
+   "name": "refuel_without_fireflies_does_nothing",
+   "covers": [
+    "T1"
+   ],
+   "why": "carried 0: no refuel, no event.",
+   "args": {
+    "seed": 1,
+    "ticks": 3,
+    "night": 1
+   },
+   "scenario": {
+    "random_motes": false,
+    "random_shades": false,
+    "random_drifters": false,
+    "wind_enabled": false,
+    "motes": [],
+    "player": {
+     "pos": [
+      0,
+      24
+     ]
+    },
+    "lanterns": [
+     {
+      "id": "L1",
+      "lit": true,
+      "fuel": 40
+     }
+    ]
+   },
+   "inputs": {
+    "frames": [
+     {
+      "tick": 0,
+      "interact": true
+     }
+    ]
+   },
+   "expect": {
+    "events": [],
+    "end": {
+     "ticks": 3,
+     "state": "playing",
+     "score": 0
+    }
+   }
+  },
+  {
+   "name": "capacity_grows_with_lights",
+   "covers": [
+    "T4"
+   ],
+   "why": "successful_lights 3 -> capacity 16. With 15 carried only one of two motes is picked (carried 16).",
+   "args": {
+    "seed": 1,
+    "ticks": 2,
+    "night": 1
+   },
+   "snapshot_every": 2,
+   "scenario": {
+    "random_motes": false,
+    "random_shades": false,
+    "random_drifters": false,
+    "wind_enabled": false,
+    "motes": [
+     [
+      0.5,
+      0
+     ],
+     [
+      0.5,
+      0
+     ]
+    ],
+    "player": {
+     "carried": 15,
+     "successful_lights": 3
+    }
+   },
+   "expect": {
+    "events": [
+     {
+      "tick": 1,
+      "name": "mote_picked",
+      "data": {
+       "carried": 16
+      }
+     }
+    ],
+    "end": {
+     "ticks": 2,
+     "state": "playing",
+     "score": 0
+    },
+    "snapshots": [
+     {
+      "tick": 2,
+      "match": {
+       "motes_active": 1,
+       "player": {
+        "capacity": 16,
+        "carried": 16
+       }
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "capacity_is_capped_at_20",
+   "covers": [
+    "T4"
+   ],
+   "why": "successful_lights 7 -> min(20, 10+14) = 20.",
+   "args": {
+    "seed": 1,
+    "ticks": 1,
+    "night": 1
+   },
+   "snapshot_every": 1,
+   "scenario": {
+    "random_motes": false,
+    "random_shades": false,
+    "random_drifters": false,
+    "wind_enabled": false,
+    "motes": [],
+    "player": {
+     "successful_lights": 7
+    }
+   },
+   "expect": {
+    "events": [],
+    "end": {
+     "ticks": 1,
+     "state": "playing",
+     "score": 0
+    },
+    "snapshots": [
+     {
+      "tick": 1,
+      "match": {
+       "player": {
+        "capacity": 20
+       }
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "low_fuel_removes_safe_zone",
+   "covers": [
+    "T2"
+   ],
+   "why": "L1 fuel 30.05 (1803 units): zone still active at tick 3 (exactly 30.0), gone from tick 4. Shade starting 6.5 m from L1 is not blocked afterwards: tick 10 distance 6.5-10*0.0667 = 5.833 -> z = 30.833.",
+   "args": {
+    "seed": 1,
+    "ticks": 10,
+    "night": 1
+   },
+   "snapshot_every": 10,
+   "scenario": {
+    "random_motes": false,
+    "random_shades": false,
+    "random_drifters": false,
+    "wind_enabled": false,
+    "motes": [],
+    "player": {
+     "pos": [
+      0,
+      25
+     ]
+    },
+    "lanterns": [
+     {
+      "id": "L1",
+      "lit": true,
+      "fuel": 30.05
+     }
+    ],
+    "shades": [
+     {
+      "id": "A",
+      "pos": [
+       0,
+       0.5,
+       31.5
+      ]
+     }
+    ]
+   },
+   "expect": {
+    "events": [],
+    "end": {
+     "ticks": 10,
+     "state": "playing",
+     "score": 0
+    },
+    "snapshots": [
+     {
+      "tick": 10,
+      "match": {
+       "shades": [
+        {
+         "id": "A",
+         "pos": [
+          0,
+          0.5,
+          30.833
+         ]
+        }
+       ]
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "wander_heads_for_nearest_unlit_lantern",
+   "covers": [
+    "T2"
+   ],
+   "why": "No weak lantern: a wandering shade walks to the nearest unlit lantern (L3) at shade speed 4 m/s: 30 ticks = 2.0 m (z -10.2 -> -12.2).",
+   "args": {
+    "seed": 1,
+    "ticks": 30,
+    "night": 1
+   },
+   "snapshot_every": 30,
+   "scenario": {
+    "random_motes": false,
+    "random_shades": false,
+    "random_drifters": false,
+    "wind_enabled": false,
+    "motes": [],
+    "lanterns": [
+     {
+      "id": "L1",
+      "lit": true
+     },
+     {
+      "id": "L2",
+      "lit": true
+     },
+     {
+      "id": "L4",
+      "lit": true
+     },
+     {
+      "id": "L5",
+      "lit": true
+     }
+    ],
+    "player": {
+     "pos": [
+      0,
+      30
+     ]
+    },
+    "shades": [
+     {
+      "id": "A",
+      "pos": [
+       14.7,
+       0.5,
+       -10.2
+      ],
+      "state": "wander"
+     }
+    ]
+   },
+   "expect": {
+    "events": [],
+    "end": {
+     "ticks": 30,
+     "state": "playing",
+     "score": 0
+    },
+    "snapshots": [
+     {
+      "tick": 30,
+      "match": {
+       "shades": [
+        {
+         "id": "A",
+         "pos": [
+          14.7,
+          0.5,
+          -12.2
+         ],
+         "state": "wander"
+        }
+       ]
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "wander_prefers_weak_lit_lantern",
+   "covers": [
+    "T2"
+   ],
+   "why": "A weak lit lantern (L1, fuel 20 < 30) beats the nearer unlit L3: after 30 ticks the shade has moved 2 m toward L1 (14.7,-10.2) -> (13.929,-8.354).",
+   "args": {
+    "seed": 1,
+    "ticks": 30,
+    "night": 1
+   },
+   "snapshot_every": 30,
+   "scenario": {
+    "random_motes": false,
+    "random_shades": false,
+    "random_drifters": false,
+    "wind_enabled": false,
+    "motes": [],
+    "lanterns": [
+     {
+      "id": "L1",
+      "lit": true,
+      "fuel": 20
+     }
+    ],
+    "player": {
+     "pos": [
+      30,
+      30
+     ]
+    },
+    "shades": [
+     {
+      "id": "A",
+      "pos": [
+       14.7,
+       0.5,
+       -10.2
+      ],
+      "state": "wander"
+     }
+    ]
+   },
+   "expect": {
+    "events": [],
+    "end": {
+     "ticks": 30,
+     "state": "playing",
+     "score": 0
+    },
+    "snapshots": [
+     {
+      "tick": 30,
+      "match": {
+       "shades": [
+        {
+         "id": "A",
+         "pos": [
+          13.929,
+          0.5,
+          -8.354
+         ],
+         "state": "wander"
+        }
+       ]
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "shade_arrives_and_drains",
+   "covers": [
+    "T2"
+   ],
+   "why": "Shade 4.9 m from weak L1 (fuel 20.05 = 1203 units): at tick 45 it is 1.967 m away -> state drain (z 26.967). From tick 46 fuel falls 6 units/tick (1 + 5): fuel_drain event every 60 ticks: tick 105, fuel (1158 - 360)/60 = 13.3.",
+   "args": {
+    "seed": 1,
+    "ticks": 110,
+    "night": 1
+   },
+   "snapshot_every": 45,
+   "scenario": {
+    "random_motes": false,
+    "random_shades": false,
+    "random_drifters": false,
+    "wind_enabled": false,
+    "motes": [],
+    "lanterns": [
+     {
+      "id": "L1",
+      "lit": true,
+      "fuel": 20.05
+     }
+    ],
+    "player": {
+     "pos": [
+      0,
+      -30
+     ]
+    },
+    "shades": [
+     {
+      "id": "A",
+      "pos": [
+       0,
+       0.5,
+       29.9
+      ],
+      "state": "wander"
+     }
+    ]
+   },
+   "expect": {
+    "events": [
+     {
+      "tick": 105,
+      "name": "fuel_drain",
+      "data": {
+       "lantern_id": "L1",
+       "shade_id": "A",
+       "fuel": 13.3
+      }
+     }
+    ],
+    "end": {
+     "ticks": 110,
+     "state": "playing",
+     "score": 0
+    },
+    "snapshots": [
+     {
+      "tick": 45,
+      "match": {
+       "shades": [
+        {
+         "id": "A",
+         "pos": [
+          0,
+          0.5,
+          26.967
+         ],
+         "state": "drain"
+        }
+       ],
+       "lanterns": [
+        {
+         "fuel": 19.3
+        },
+        {},
+        {},
+        {},
+        {}
+       ]
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "two_drainers_stack",
+   "covers": [
+    "T2"
+   ],
+   "why": "Two shades draining L1: 1 + 5 + 5 = 11 units per tick: 10 ticks from 1203 -> 1093 = 18.2.",
+   "args": {
+    "seed": 1,
+    "ticks": 10,
+    "night": 1
+   },
+   "snapshot_every": 10,
+   "scenario": {
+    "random_motes": false,
+    "random_shades": false,
+    "random_drifters": false,
+    "wind_enabled": false,
+    "motes": [],
+    "lanterns": [
+     {
+      "id": "L1",
+      "lit": true,
+      "fuel": 20.05
+     }
+    ],
+    "player": {
+     "pos": [
+      0,
+      -30
+     ]
+    },
+    "shades": [
+     {
+      "id": "A",
+      "pos": [
+       0,
+       0.5,
+       26.5
+      ],
+      "state": "drain",
+      "target_lantern_id": "L1"
+     },
+     {
+      "id": "B",
+      "pos": [
+       1,
+       0.5,
+       26
+      ],
+      "state": "drain",
+      "target_lantern_id": "L1"
+     }
+    ]
+   },
+   "expect": {
+    "events": [],
+    "end": {
+     "ticks": 10,
+     "state": "playing",
+     "score": 0
+    },
+    "snapshots": [
+     {
+      "tick": 10,
+      "match": {
+       "lanterns": [
+        {
+         "fuel": 18.2
+        },
+        {},
+        {},
+        {},
+        {}
+       ],
+       "shades": [
+        {
+         "state": "drain"
+        },
+        {
+         "state": "drain"
+        }
+       ]
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "drain_becomes_chase_near_player",
+   "covers": [
+    "T2"
+   ],
+   "why": "Mây within 6 m (5.4 m) of a draining shade: drain -> chase.",
+   "args": {
+    "seed": 1,
+    "ticks": 1,
+    "night": 1
+   },
+   "snapshot_every": 1,
+   "scenario": {
+    "random_motes": false,
+    "random_shades": false,
+    "random_drifters": false,
+    "wind_enabled": false,
+    "motes": [],
+    "lanterns": [
+     {
+      "id": "L1",
+      "lit": true,
+      "fuel": 20
+     }
+    ],
+    "player": {
+     "pos": [
+      0,
+      21.5
+     ]
+    },
+    "shades": [
+     {
+      "id": "A",
+      "pos": [
+       0,
+       0.5,
+       26.9
+      ],
+      "state": "drain",
+      "target_lantern_id": "L1"
+     }
+    ]
+   },
+   "expect": {
+    "events": [],
+    "end": {
+     "ticks": 1,
+     "state": "playing",
+     "score": 0
+    },
+    "snapshots": [
+     {
+      "tick": 1,
+      "match": {
+       "shades": [
+        {
+         "state": "chase"
+        }
+       ]
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "drain_ends_when_fuel_reaches_30",
+   "covers": [
+    "T2"
+   ],
+   "why": "Lantern at fuel 31 is not weak: the shade stops draining (drain -> wander).",
+   "args": {
+    "seed": 1,
+    "ticks": 1,
+    "night": 1
+   },
+   "snapshot_every": 1,
+   "scenario": {
+    "random_motes": false,
+    "random_shades": false,
+    "random_drifters": false,
+    "wind_enabled": false,
+    "motes": [],
+    "lanterns": [
+     {
+      "id": "L1",
+      "lit": true,
+      "fuel": 31
+     }
+    ],
+    "player": {
+     "pos": [
+      0,
+      -30
+     ]
+    },
+    "shades": [
+     {
+      "id": "A",
+      "pos": [
+       0,
+       0.5,
+       26.5
+      ],
+      "state": "drain",
+      "target_lantern_id": "L1"
+     }
+    ]
+   },
+   "expect": {
+    "events": [],
+    "end": {
+     "ticks": 1,
+     "state": "playing",
+     "score": 0
+    },
+    "snapshots": [
+     {
+      "tick": 1,
+      "match": {
+       "shades": [
+        {
+         "state": "wander"
+        }
+       ]
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "drain_ends_when_lantern_goes_out",
+   "covers": [
+    "T2"
+   ],
+   "why": "fuel 0.05 (3 units) drained at 6/tick: lantern_out at tick 1 and the shade goes back to wander.",
+   "args": {
+    "seed": 1,
+    "ticks": 1,
+    "night": 1
+   },
+   "snapshot_every": 1,
+   "scenario": {
+    "random_motes": false,
+    "random_shades": false,
+    "random_drifters": false,
+    "wind_enabled": false,
+    "motes": [],
+    "lanterns": [
+     {
+      "id": "L1",
+      "lit": true,
+      "fuel": 0.05
+     }
+    ],
+    "player": {
+     "pos": [
+      0,
+      -30
+     ]
+    },
+    "shades": [
+     {
+      "id": "A",
+      "pos": [
+       0,
+       0.5,
+       26.5
+      ],
+      "state": "drain",
+      "target_lantern_id": "L1"
+     }
+    ]
+   },
+   "expect": {
+    "events": [
+     {
+      "tick": 1,
+      "name": "lantern_out",
+      "data": {
+       "lantern_id": "L1"
+      }
+     }
+    ],
+    "end": {
+     "ticks": 1,
+     "state": "playing",
+     "score": 0
+    },
+    "snapshots": [
+     {
+      "tick": 1,
+      "match": {
+       "shades": [
+        {
+         "state": "wander"
+        }
+       ],
+       "lanterns": [
+        {
+         "lit": false,
+         "deposited": 0,
+         "ever_lit": true
+        },
+        {},
+        {},
+        {},
+        {}
+       ]
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "pulse_on_draining_shade_scores_15",
+   "covers": [
+    "T5",
+    "T2"
+   ],
+   "why": "Pulse hits a draining shade (+15) and a chasing shade (+5): 20, both stunned.",
+   "args": {
+    "seed": 1,
+    "ticks": 2,
+    "night": 1
+   },
+   "snapshot_every": 2,
+   "scenario": {
+    "random_motes": false,
+    "random_shades": false,
+    "random_drifters": false,
+    "wind_enabled": false,
+    "motes": [],
+    "player": {
+     "pos": [
+      0,
+      23
+     ],
+     "carried": 3
+    },
+    "lanterns": [
+     {
+      "id": "L1",
+      "lit": true,
+      "fuel": 20
+     }
+    ],
+    "shades": [
+     {
+      "id": "A",
+      "pos": [
+       0,
+       0.5,
+       26.5
+      ],
+      "state": "drain",
+      "target_lantern_id": "L1"
+     },
+     {
+      "id": "B",
+      "pos": [
+       4,
+       0.5,
+       23
+      ]
+     }
+    ]
+   },
+   "inputs": {
+    "frames": [
+     {
+      "tick": 0,
+      "pulse": true
+     }
+    ]
+   },
+   "expect": {
+    "events": [
+     {
+      "tick": 1,
+      "name": "pulse",
+      "data": {
+       "stunned_ids": [
+        "A",
+        "B"
+       ]
+      }
+     }
+    ],
+    "end": {
+     "ticks": 2,
+     "state": "playing",
+     "score": 20
+    },
+    "snapshots": [
+     {
+      "tick": 2,
+      "match": {
+       "shades": [
+        {
+         "state": "stunned"
+        },
+        {
+         "state": "stunned"
+        }
+       ]
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "refuel_over_30_pushes_shades_out",
+   "covers": [
+    "T2"
+   ],
+   "why": "Refuelling a weak lantern past 30 (3 motes: (1202+1800)/60 = 50.0) pushes shades inside 6 m out evenly over 30 ticks and they cannot hurt Mây meanwhile: tick 1 a shade 3 m from L1 is 3.1 m away (z 28.1).",
+   "args": {
+    "seed": 1,
+    "ticks": 1,
+    "night": 1
+   },
+   "snapshot_every": 1,
+   "scenario": {
+    "random_motes": false,
+    "random_shades": false,
+    "random_drifters": false,
+    "wind_enabled": false,
+    "motes": [],
+    "player": {
+     "pos": [
+      0,
+      24
+     ],
+     "carried": 3
+    },
+    "lanterns": [
+     {
+      "id": "L1",
+      "lit": true,
+      "fuel": 20.05
+     }
+    ],
+    "shades": [
+     {
+      "id": "A",
+      "pos": [
+       0,
+       0.5,
+       28
+      ]
+     }
+    ]
+   },
+   "inputs": {
+    "frames": [
+     {
+      "tick": 0,
+      "interact": true
+     }
+    ]
+   },
+   "expect": {
+    "events": [
+     {
+      "tick": 1,
+      "name": "refuel",
+      "data": {
+       "lantern_id": "L1",
+       "amount": 3,
+       "fuel": 50
+      }
+     }
+    ],
+    "end": {
+     "ticks": 1,
+     "state": "playing",
+     "score": 15
+    },
+    "snapshots": [
+     {
+      "tick": 1,
+      "match": {
+       "shades": [
+        {
+         "pos": [
+          0,
+          0.5,
+          28.1
+         ]
+        }
+       ]
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "cli_lantern_fuel_out_of_range",
+   "covers": [
+    "T1"
+   ],
+   "why": "lantern fuel must be in [0,100].",
+   "args": {
+    "seed": 1,
+    "ticks": 5,
+    "night": 1
+   },
+   "scenario": {
+    "lanterns": [
+     {
+      "id": "L1",
+      "lit": true,
+      "fuel": 150
+     }
+    ]
+   },
+   "expect_exit": 2
   },
   {
    "name": "cli_night_out_of_range",
