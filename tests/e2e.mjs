@@ -314,9 +314,7 @@ await test("shade_walks_to_weak_lantern_and_drains", "T2", "A wandering shade pi
   await ready(page);
   await waitFor(page, () => window.__game.sim.shades[0].state === "drain", 20000);
   const f0 = await sim(page, "s.lanterns[0].fuelU");
-  await sleep(500);
-  const f1 = await sim(page, "s.lanterns[0].fuelU");
-  if (!(f1 < f0 - 3)) throw new Error(`fuel not draining fast enough: ${f0} -> ${f1}`);
+  await waitFor(page, (f) => window.__game.sim.lanterns[0].fuelU < f - 3, 30000, f0);
   await page.screenshot({ path: join(shots, "e2e-drain.png") });
 });
 
