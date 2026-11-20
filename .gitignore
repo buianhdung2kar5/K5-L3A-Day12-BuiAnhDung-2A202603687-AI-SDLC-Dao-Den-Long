@@ -5,3 +5,4 @@ dist/
 data/
 bench.tmp.json
 release/
+docs/demo/

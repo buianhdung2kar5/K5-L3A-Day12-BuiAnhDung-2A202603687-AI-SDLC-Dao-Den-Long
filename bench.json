@@ -1,0 +1,15 @@
+{
+  "contract_version": "1.3",
+  "avg_fps": 330.5,
+  "p1_low_fps": 86,
+  "frame_ms_p95": 5.3,
+  "frames": 9916,
+  "load_ms": 1197,
+  "peak_mem_mb": 837.9,
+  "peak_mem_note": "Web build: RSS (working set) summed over the Chrome process tree, sampled 3 times right after the measured interval while the scene keeps running (approximation of the peak). peak_js_heap_mb is the JS heap peak during the interval.",
+  "peak_js_heap_mb": 54.5,
+  "vsync_off": true,
+  "vsync_note": "Chrome started with --disable-gpu-vsync --disable-frame-rate-limit.",
+  "renderer": "Babylon.js 9.37.1, WebGL: ANGLE (Intel, Intel(R) Iris(R) Xe Graphics (0x000046A6) Direct3D11 vs_5_0 ps_5_0, D3D11); Chrome/157.0.8103.79",
+  "os": "win32 10.0.22631 x64; 12th Gen Intel(R) Core(TM) i7-12700H, 20 threads; 40 GB RAM"
+}

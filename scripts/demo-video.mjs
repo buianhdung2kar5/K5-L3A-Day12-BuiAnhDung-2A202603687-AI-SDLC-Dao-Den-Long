@@ -16,7 +16,7 @@ mkdirSync(join(out, ".."), { recursive: true });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const { server, port } = await startServer({ port: 8500, lbPath: join(work, "lb.json") });
 const base = `http://localhost:${port}/`;
-const browser = await puppeteer.launch({ executablePath: chromePath, headless: "new", defaultViewport: { width: 1280, height: 720 }, args: ["--no-sandbox", "--ignore-gpu-blocklist"] });
+const browser = await puppeteer.launch({ executablePath: chromePath, headless: "new", defaultViewport: { width: 1280, height: 720 }, protocolTimeout: 600000, args: ["--no-sandbox", "--ignore-gpu-blocklist"] });
 const QUIET = { random_motes: false, random_shades: false, random_drifters: false, wind_enabled: false, motes: [] };
 const url = (night, scn) => `${base}?autostart&night=${night}&seed=11&scenario=${encodeURIComponent(JSON.stringify({ ...QUIET, ...scn }))}`;
 const segments = [];
@@ -28,14 +28,21 @@ async function record(name, fn, setup) {
   const dir = join(work, name);
   mkdirSync(dir);
   let n = 0;
-  let live = true;
-  const t0 = Date.now();
-  const grab = (async () => {
-    while (live) {
-      writeFileSync(join(dir, `f${String(n++).padStart(5, "0")}.jpg`), await page.screenshot({ type: "jpeg", quality: 80 }));
-    }
-  })();
-  await fn(page);
+  let live = false;
+  let grab = Promise.resolve();
+  let t0 = 0;
+  const start = () => {
+    if (live) return;
+    live = true;
+    t0 = Date.now();
+    grab = (async () => {
+      while (live) {
+        writeFileSync(join(dir, `f${String(n++).padStart(5, "0")}.jpg`), await page.screenshot({ type: "jpeg", quality: 80 }));
+      }
+    })();
+  };
+  await fn(page, start);
+  if (!live) throw new Error(`segment ${name} never started capturing`);
   live = false;
   await grab;
   const secs = (Date.now() - t0) / 1000;
@@ -69,9 +76,10 @@ try {
 await card("title", `<h1 style="color:#FFB347;font-size:64px;margin:0">Đảo Đèn Lồng v1.0.0</h1><p>Video demo tự động: script puppeteer điều khiển game thật bằng phím thật, ghi hình và nén bằng ffmpeg (commit ${commit}).</p><p>Nội dung: menu · thắp đèn, lướt, nhảy, châm dầu · Bóng Mực hút dầu và Tỏa Sáng · bục nhảy Đảo Cau · Đảo Chuông · đổi phím và chế độ mù màu · bảng xếp hạng · test, headless, bench, soak</p>`, 7);
 
 // 1. menu -> intro -> play
-await record("menu", async (page) => {
+await record("menu", async (page, start) => {
   await page.goto(`${base}?seed=11`);
   await waitFor(page, () => window.__game);
+  start();
   await sleep(2500);
   await page.click("#btn-start");
   await sleep(3500);
@@ -87,9 +95,10 @@ await record("menu", async (page) => {
 });
 
 // 2. light a lantern, dash, jump, refuel another one
-await record("lanterns", async (page) => {
+await record("lanterns", async (page, start) => {
   await page.goto(url(1, { player: { pos: [0, 22], carried: 14, successful_lights: 2 }, lanterns: [{ id: "L2", pos: [9, 24], lit: true, fuel: 22 }] }));
   await waitFor(page, () => window.__game && window.__game.flow === "play" && window.__game.sim.tick > 3);
+  start();
   await sleep(1500);
   await page.keyboard.down("w");
   await sleep(450);
@@ -110,44 +119,48 @@ await record("lanterns", async (page) => {
 });
 
 // 3. a shade drains a weak lantern, Mây pulses
-await record("drain", async (page) => {
-  await page.goto(url(1, { player: { pos: [0, 12], carried: 6 }, lanterns: [{ id: "L1", lit: true, fuel: 25 }], shades: [{ id: "A", pos: [0, 0.5, 30], state: "wander" }] }));
+await record("drain", async (page, start) => {
+  await page.goto(url(1, { player: { pos: [0, 0], carried: 6 }, lanterns: [{ id: "L1", lit: true, fuel: 25 }], shades: [{ id: "A", pos: [0, 0.5, 30], state: "wander" }] }));
   await waitFor(page, () => window.__game && window.__game.flow === "play" && window.__game.sim.tick > 3);
+  start();
   await page.keyboard.down("w");
-  await sleep(1300);
+  await sleep(1000);
   await page.keyboard.up("w");
   await waitFor(page, () => window.__game.sim.shades[0].state === "drain", 40000);
   await sleep(2500);
   await page.keyboard.down("w");
-  await waitFor(page, () => window.__game.sim.player.pos[2] > 19, 8000);
+  await waitFor(page, () => window.__game.sim.player.pos[2] > 22, 20000);
   await page.keyboard.up("w");
   await page.keyboard.press("f");
   await sleep(3500);
 });
 
 // 4. Night 2 bounce pad
-await record("night2", async (page) => {
+await record("night2", async (page, start) => {
   await page.goto(url(2, { player: { pos: [20, 18] }, charms: [] }));
   await waitFor(page, () => window.__game && window.__game.flow === "play");
+  start();
   await waitFor(page, () => window.__game.sim.player.grounded && window.__game.sim.player.pos[0] > 42, 30000);
   await sleep(2000);
 });
 
 // 5. Night 3 tiers and the bell tower
-await record("night3", async (page) => {
+await record("night3", async (page, start) => {
   await page.goto(url(3, { player: { pos: [0, 13] }, time_left_s: 200 }));
   await waitFor(page, () => window.__game && window.__game.flow === "play");
+  start();
   await waitFor(page, () => window.__game.sim.player.grounded && window.__game.sim.player.pos[1] > 5.9, 30000);
   await sleep(3000);
 });
 
 // 6. settings: rebind a key, colour-blind palette, large text
-await record("settings", async (page) => {
+await record("settings", async (page, start) => {
   await page.goto(`${base}?seed=11`);
   await waitFor(page, () => window.__game);
   await page.evaluate(() => localStorage.clear());
   await page.reload();
   await waitFor(page, () => window.__game);
+  start();
   await page.click("#btn-menu-settings");
   await sleep(1500);
   await page.click("#key-jump");
@@ -168,9 +181,10 @@ await record("settings", async (page) => {
 }, null);
 
 // 7. lose a Night, save the score, show the leaderboard
-await record("leaderboard", async (page) => {
+await record("leaderboard", async (page, start) => {
   await page.goto(url(1, { player: { flames: 1 }, shades: [{ id: "A", pos: [0.5, 0.5, 0] }] }));
   await waitFor(page, () => window.__game && window.__game.flow === "result");
+  start();
   await sleep(2500);
   await page.click("#btn-res-save");
   await sleep(800);
