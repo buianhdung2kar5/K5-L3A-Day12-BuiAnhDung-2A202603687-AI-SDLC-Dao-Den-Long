@@ -52,7 +52,7 @@ function main(): void {
   const a = parseArgs(process.argv.slice(2));
   const seed = intArg(a, "seed", -2147483648);
   const night = intArg(a, "night", 1);
-  if (night !== 1) die("only --night 1 is supported");
+  if (night > 3) die("--night must be 1, 2 or 3");
   const ticks = intArg(a, "ticks", 0);
   const every = intArg(a, "snapshot-every", 1, 10);
   const out = a.get("out");
@@ -63,7 +63,7 @@ function main(): void {
   try {
     const scn = a.has("scenario") ? parseScenario(readJson(a.get("scenario")!, "scenario")) : {};
     const frames = a.has("inputs") ? parseInputs(readJson(a.get("inputs")!, "inputs")) : [];
-    sim = new Sim(seed, scn);
+    sim = new Sim(seed, scn, night);
     track = new InputTrack(frames);
   } catch (e) {
     if (e instanceof InputError) die(e.message);

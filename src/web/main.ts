@@ -5,6 +5,8 @@ import {
   FreeCamera,
   GlowLayer,
   HemisphericLight,
+  InstancedMesh,
+  Matrix,
   Mesh,
   MeshBuilder,
   PointLight,
@@ -12,148 +14,329 @@ import {
   StandardMaterial,
   TransformNode,
   Vector3,
+  VertexData,
 } from "@babylonjs/core";
+import type { NightMap } from "../sim/maps";
 import { parseScenario } from "../sim/scenario";
 import { Sim } from "../sim/sim";
-import { TUNING, WORLD } from "../sim/tuning";
-import type { InputState } from "../sim/types";
+import { K, TUNING } from "../sim/tuning";
+import type { InputState, Scenario } from "../sim/types";
+import { GameAudio } from "./audio";
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 const params = new URLSearchParams(location.search);
 
-// ---------- engine / scene ----------
+// ---------------------------------------------------------------- palette (Ticket-02 part 3, item 8)
+const PAL = {
+  sky: "#0E1430", mist: "#1B2350", grass: "#2F5D50", sand: "#C9B48A", wood: "#6B4A2F", sea: "#12384A",
+  lampOn: "#FFB347", lampCore: "#FFE9B0", lampOff: "#5B5F6E", moteCore: "#FFF6C2", moteHalo: "#FFE58A",
+  shadeBody: "#120A1A", shadeRim: "#7A3CFF", shadeStun: "#3A3450", shirt: "#E8E2D0", scarf: "#C8102E",
+  gold: "#F2C14E", drifter: "#8FA3B8",
+};
+const C = (hex: string): Color3 => Color3.FromHexString(hex);
+
+// ---------------------------------------------------------------- settings (persisted in localStorage)
+interface Settings { volume: number; sens: number }
+const SETTINGS_KEY = "ddl.settings.v1";
+const clamp = (v: number, a: number, b: number): number => Math.min(b, Math.max(a, v));
+function loadSettings(): Settings {
+  try {
+    const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? "null");
+    if (s && typeof s.volume === "number" && typeof s.sens === "number") return { volume: clamp(s.volume, 0, 1), sens: clamp(s.sens, 0.05, 1) };
+  } catch { /* ignore */ }
+  return { volume: 0.7, sens: 0.35 };
+}
+const settings = loadSettings();
+const saveSettings = (): void => {
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch { /* ignore */ }
+};
+const audio = new GameAudio();
+audio.setVolume(settings.volume);
+
+// ---------------------------------------------------------------- engine / scene
 const canvas = $<HTMLCanvasElement>("game");
 const engine = new Engine(canvas, true, { preserveDrawingBuffer: true });
 const scene = new Scene(engine);
-scene.clearColor = new Color4(0.03, 0.02, 0.07, 1);
+scene.clearColor = Color4.FromColor3(C(PAL.sky), 1);
 scene.fogMode = Scene.FOGMODE_EXP2;
-scene.fogColor = new Color3(0.05, 0.03, 0.09);
+scene.fogColor = C(PAL.mist);
+scene.fogDensity = 0.012;
 const glow = new GlowLayer("glow", scene);
 glow.intensity = 0.7;
 const hemi = new HemisphericLight("hemi", new Vector3(0, 1, 0), scene);
-hemi.diffuse = new Color3(0.45, 0.4, 0.7);
-hemi.groundColor = new Color3(0.08, 0.05, 0.15);
-
+hemi.diffuse = new Color3(0.75, 0.78, 1);
+hemi.groundColor = C(PAL.sky);
 const camera = new FreeCamera("cam", new Vector3(0, 6, -10), scene);
 camera.minZ = 0.1;
-camera.maxZ = 200;
+camera.maxZ = 400;
 
-function mat(diffuse: Color3, emissive = Color3.Black(), alpha = 1): StandardMaterial {
+function mat(diffuse: string, emissive = "#000000", alpha = 1, emissiveScale = 1): StandardMaterial {
   const m = new StandardMaterial("m", scene);
-  m.diffuseColor = diffuse;
-  m.emissiveColor = emissive;
+  m.diffuseColor = C(diffuse);
+  m.emissiveColor = C(emissive).scale(emissiveScale);
   m.specularColor = Color3.Black();
   m.alpha = alpha;
+  m.backFaceCulling = false;
+  m.twoSidedLighting = true;
   return m;
 }
 
-// island + cloud sea
-const ground = MeshBuilder.CreateCylinder("ground", { diameter: WORLD.islandRadius * 2, height: 1, tessellation: 64 }, scene);
-ground.position.y = -0.5;
-ground.material = mat(new Color3(0.2, 0.26, 0.22));
-const rim = MeshBuilder.CreateTorus("rim", { diameter: WORLD.islandRadius * 2, thickness: 0.6, tessellation: 64 }, scene);
-rim.material = mat(new Color3(0.3, 0.22, 0.16));
-for (let i = 0; i < 26; i++) {
-  const a = (i / 26) * Math.PI * 2;
-  const r = 38 + (i % 4) * 7;
-  const c = MeshBuilder.CreateSphere("cloud", { diameter: 14 + (i % 3) * 5, segments: 8 }, scene);
-  c.scaling.y = 0.35;
-  c.position.set(Math.cos(a) * r, -4 - (i % 3), Math.sin(a) * r);
-  c.material = mat(new Color3(0.35, 0.33, 0.5), new Color3(0.07, 0.06, 0.12), 0.85);
+// ---------------------------------------------------------------- static night geometry
+let sim: Sim;
+let statics: { dispose(): void }[] = [];
+const reg = <T extends { dispose(): void }>(m: T): T => { statics.push(m); return m; };
+
+function sector(r1: number, r2: number, h0: number, h1: number, a0: number, a1: number, n: number, topMat: StandardMaterial, wallMat: StandardMaterial): void {
+  const build = (quads: number[][][], material: StandardMaterial) => {
+    const pos: number[] = [];
+    const idx: number[] = [];
+    for (const q of quads) {
+      const b = pos.length / 3;
+      for (const p of q) pos.push(p[0], p[1], p[2]);
+      idx.push(b, b + 1, b + 2, b, b + 2, b + 3);
+    }
+    const nor: number[] = [];
+    VertexData.ComputeNormals(pos, idx, nor);
+    const mesh = new Mesh("sector", scene);
+    const vd = new VertexData();
+    vd.positions = pos; vd.indices = idx; vd.normals = nor;
+    vd.applyToMesh(mesh);
+    mesh.material = material;
+    reg(mesh);
+  };
+  const P = (r: number, a: number, y: number) => [r * Math.cos(a), y, r * Math.sin(a)];
+  const top: number[][][] = [];
+  const outer: number[][][] = [];
+  const inner: number[][][] = [];
+  for (let i = 0; i < n; i++) {
+    const t0 = a0 + ((a1 - a0) * i) / n;
+    const t1 = a0 + ((a1 - a0) * (i + 1)) / n;
+    top.push([P(r1, t0, h1), P(r2, t0, h1), P(r2, t1, h1), P(r1, t1, h1)]);
+    outer.push([P(r2, t0, h0), P(r2, t1, h0), P(r2, t1, h1), P(r2, t0, h1)]);
+    inner.push([P(r1, t0, h0), P(r1, t0, h1), P(r1, t1, h1), P(r1, t1, h0)]);
+  }
+  const caps = [
+    [P(r1, a0, h0), P(r2, a0, h0), P(r2, a0, h1), P(r1, a0, h1)],
+    [P(r1, a1, h0), P(r1, a1, h1), P(r2, a1, h1), P(r2, a1, h0)],
+  ];
+  build(top, topMat);
+  build([...outer, ...inner, ...caps], wallMat);
 }
 
-// ---------- world objects ----------
-const UNLIT = new Color3(0.05, 0.03, 0.03);
-const LIT = new Color3(1, 0.68, 0.2);
-// Dev/demo only: ?scenario=<urlencoded scenario JSON> uses the same scenario format as the headless mode.
-const devScenario = params.has("scenario") ? parseScenario(JSON.parse(params.get("scenario")!)) : {};
-let sim = new Sim(Number(params.get("seed") ?? Date.now() % 2147483647), devScenario);
+function island(cx: number, radius: number): void {
+  const top = MeshBuilder.CreateCylinder("isl", { diameter: radius * 2, height: 1.2, tessellation: 72 }, scene);
+  top.position.set(cx, -0.6, 0);
+  top.material = mat(PAL.grass);
+  const edge = MeshBuilder.CreateTorus("edge", { diameter: radius * 2, thickness: 0.9, tessellation: 72 }, scene);
+  edge.position.set(cx, -0.1, 0);
+  edge.material = mat(PAL.sand);
+  const under = MeshBuilder.CreateCylinder("under", { diameterTop: radius * 2, diameterBottom: radius * 0.25, height: radius * 0.4, tessellation: 40 }, scene);
+  under.position.set(cx, -1.2 - radius * 0.2, 0);
+  under.material = mat(PAL.wood);
+  reg(top); reg(edge); reg(under);
+}
 
-interface LanternView { body: Mesh; light: PointLight; lit: boolean }
-const lanternViews: LanternView[] = [];
-const moteMat = mat(new Color3(1, 0.9, 0.4), new Color3(1, 0.85, 0.3));
-const moteMeshes: Mesh[] = [];
-const shadeMeshes = new Map<string, Mesh>();
-const shadeMatChase = mat(new Color3(0.07, 0.02, 0.12), new Color3(0.28, 0.04, 0.4));
-const shadeMatStun = mat(new Color3(0.2, 0.2, 0.3), new Color3(0.3, 0.3, 0.5), 0.6);
+function padDisc(x: number, y: number, z: number): void {
+  const d = MeshBuilder.CreateCylinder("pad", { diameter: 2, height: 0.12, tessellation: 32 }, scene);
+  d.position.set(x, y + 0.06, z);
+  d.material = mat(PAL.gold, PAL.gold, 1, 0.8);
+  const ring = MeshBuilder.CreateTorus("padring", { diameter: 2.6, thickness: 0.12, tessellation: 32 }, scene);
+  ring.position.set(x, y + 0.14, z);
+  ring.material = mat(PAL.lampCore, PAL.lampCore, 0.9);
+  reg(d); reg(ring);
+}
 
-function buildLanterns(): void {
-  for (const v of lanternViews) {
-    v.body.dispose();
-    v.light.dispose();
+interface LanternView { body: Mesh; core: Mesh; light: PointLight; zone: Mesh; lit: boolean }
+let lanternViews: LanternView[] = [];
+
+function buildNight(map: NightMap): void {
+  for (const s of statics) s.dispose();
+  statics = [];
+  for (const v of lanternViews) v.light.dispose();
+  lanternViews = [];
+
+  // cloud sea and puffs
+  const cx = map.night === 2 ? 35 : 0;
+  const sea = MeshBuilder.CreateCylinder("sea", { diameter: 600, height: 1, tessellation: 48 }, scene);
+  sea.position.set(cx, -22, 0);
+  sea.material = mat(PAL.sea, PAL.sea, 1, 0.5);
+  reg(sea);
+  const puff = mat("#C8D3E0", PAL.sea, 0.55, 0.6);
+  for (let i = 0; i < 40; i++) {
+    const a = (i / 40) * Math.PI * 2;
+    const r = 55 + (i % 5) * 9;
+    const c = MeshBuilder.CreateSphere("cloud", { diameter: 16 + (i % 3) * 6, segments: 8 }, scene);
+    c.scaling.y = 0.32;
+    c.position.set(cx + Math.cos(a) * r * (map.night === 2 ? 1.5 : 1), -9 - (i % 4) * 1.5, Math.sin(a) * r);
+    c.material = puff;
+    reg(c);
   }
-  lanternViews.length = 0;
-  for (const l of sim.lanterns) {
+
+  if (map.night === 1) island(0, 40);
+  if (map.night === 2) {
+    island(0, 28);
+    island(70, 28);
+    const bridge = MeshBuilder.CreateBox("bridge", { width: 18, height: 0.3, depth: 4 }, scene);
+    bridge.position.set(35, -0.15, 0);
+    bridge.material = mat(PAL.wood);
+    reg(bridge);
+    for (let i = 0; i < 18; i++) {
+      const plank = MeshBuilder.CreateBox("plank", { width: 0.12, height: 0.34, depth: 4 }, scene);
+      plank.position.set(26.5 + i, -0.14, 0);
+      plank.material = mat("#4a3320");
+      reg(plank);
+    }
+  }
+  if (map.night === 3) {
+    island(0, 45);
+    const grass = mat(PAL.grass);
+    const wood = mat(PAL.wood);
+    sector(12, 24, 0, 3, 0, Math.PI, 48, grass, wood);
+    const disc = MeshBuilder.CreateCylinder("tier2", { diameter: 16, height: 6, tessellation: 48 }, scene);
+    disc.position.set(0, 3, 0);
+    disc.material = mat(PAL.sand);
+    const discTop = MeshBuilder.CreateDisc("tier2top", { radius: 8, tessellation: 48 }, scene);
+    discTop.rotation.x = Math.PI / 2;
+    discTop.position.set(0, 6.01, 0);
+    discTop.material = grass;
+    reg(disc); reg(discTop);
+    const tower = MeshBuilder.CreateCylinder("tower", { diameter: 4, height: 8, tessellation: 24 }, scene);
+    tower.position.set(0, 10, 0);
+    tower.material = mat(PAL.sand);
+    const roof = MeshBuilder.CreateCylinder("roof", { diameterTop: 0, diameterBottom: 5, height: 2.4, tessellation: 24 }, scene);
+    roof.position.set(0, 15.2, 0);
+    roof.material = mat(PAL.wood);
+    const bell = MeshBuilder.CreateSphere("bell", { diameter: 1.4 }, scene);
+    bell.position.set(0, 12.2, 2.1);
+    bell.material = mat(PAL.gold, PAL.gold, 1, 0.5);
+    reg(tower); reg(roof); reg(bell);
+    for (const a of [30, 150]) {
+      const ux = Math.cos((a * Math.PI) / 180), uz = Math.sin((a * Math.PI) / 180);
+      const vx = -uz, vz = ux;
+      const P = (s: number, lat: number, y: number) => new Vector3(s * ux + lat * vx, y, s * uz + lat * vz);
+      const ramp = MeshBuilder.CreateRibbon("ramp", { pathArray: [[P(30, -1.5, 0.02), P(24, -1.5, 3.02)], [P(30, 1.5, 0.02), P(24, 1.5, 3.02)]], sideOrientation: Mesh.DOUBLESIDE }, scene);
+      ramp.material = mat(PAL.sand);
+      reg(ramp);
+    }
+  }
+  for (const pad of map.pads) padDisc(pad.pos[0], pad.pos[1], pad.pos[2]);
+
+  // lanterns
+  const poleMat = mat(PAL.wood);
+  sim.lanterns.forEach((l) => {
     const pole = MeshBuilder.CreateCylinder("pole", { diameter: 0.35, height: 3 }, scene);
-    pole.position.set(l.pos[0], 1.5, l.pos[2]);
-    pole.material = mat(new Color3(0.25, 0.16, 0.1));
-    const body = MeshBuilder.CreateSphere("lantern", { diameter: 1.6, segments: 12 }, scene);
-    body.position.set(l.pos[0], 3.5, l.pos[2]);
-    body.material = mat(new Color3(0.4, 0.3, 0.2), UNLIT);
-    const light = new PointLight("pl", new Vector3(l.pos[0], 3.6, l.pos[2]), scene);
-    light.diffuse = new Color3(1, 0.7, 0.3);
-    light.range = 22;
+    pole.position.set(l.pos[0], l.pos[1] + 1.5, l.pos[2]);
+    pole.material = poleMat;
+    const body = MeshBuilder.CreateSphere("lantern", { diameter: 1.7, segments: 12 }, scene);
+    body.position.set(l.pos[0], l.pos[1] + 3.5, l.pos[2]);
+    body.material = mat(PAL.lampOff);
+    const core = MeshBuilder.CreateSphere("core", { diameter: 0.8, segments: 8 }, scene);
+    core.position.copyFrom(body.position);
+    core.material = mat(PAL.lampCore, PAL.lampCore);
+    core.setEnabled(false);
+    const zone = MeshBuilder.CreateTorus("zone", { diameter: TUNING.safe_radius * 2, thickness: 0.14, tessellation: 64 }, scene);
+    zone.position.set(l.pos[0], l.pos[1] + 0.08, l.pos[2]);
+    zone.material = mat(PAL.lampOn, PAL.lampOn, 0.5, 0.8);
+    zone.setEnabled(false);
+    const light = new PointLight("pl", new Vector3(l.pos[0], l.pos[1] + 3.6, l.pos[2]), scene);
+    light.diffuse = C(PAL.lampOn);
+    light.range = 26;
     light.intensity = 0;
-    lanternViews.push({ body, light, lit: false });
-  }
+    reg(pole); reg(body); reg(core); reg(zone);
+    lanternViews.push({ body, core, light, zone, lit: false });
+  });
 }
-buildLanterns();
 
-// player: body, head, conical hat with a small hanging lantern
+// ---------------------------------------------------------------- dynamic views
+const moteBase = MeshBuilder.CreateSphere("moteBase", { diameter: 0.45, segments: 6 }, scene);
+moteBase.material = mat(PAL.moteCore, PAL.moteHalo);
+moteBase.setEnabled(false);
+const moteViews: InstancedMesh[] = [];
+const shadeMats = {
+  body: mat(PAL.shadeBody, PAL.shadeRim, 1, 0.25),
+  stun: mat(PAL.shadeStun, PAL.shadeStun, 0.75, 0.8),
+  rim: mat(PAL.shadeRim, PAL.shadeRim, 0.3, 0.9),
+};
+interface ShadeView { root: TransformNode; body: Mesh; rim: Mesh }
+const shadeViews = new Map<string, ShadeView>();
+interface DrifterView { root: TransformNode; mats: StandardMaterial }
+const drifterViews = new Map<string, DrifterView>();
+const charmViews = new Map<string, Mesh>();
+
+// player: shirt, scarf, head, conical hat with a small lantern
 const player = new TransformNode("player", scene);
-const bodyM = MeshBuilder.CreateCylinder("pbody", { diameterTop: 0.6, diameterBottom: 0.9, height: 1.1 }, scene);
-bodyM.position.y = 0.55;
-bodyM.material = mat(new Color3(0.35, 0.5, 0.75), new Color3(0.05, 0.07, 0.12));
-bodyM.parent = player;
-const head = MeshBuilder.CreateSphere("phead", { diameter: 0.6 }, scene);
-head.position.y = 1.4;
-head.material = mat(new Color3(0.95, 0.8, 0.65), new Color3(0.1, 0.08, 0.06));
-head.parent = player;
-const hat = MeshBuilder.CreateCylinder("hat", { diameterTop: 0, diameterBottom: 0.95, height: 0.9 }, scene);
-hat.position.y = 2.0;
-hat.material = mat(new Color3(0.55, 0.35, 0.2), new Color3(0.08, 0.05, 0.03));
-hat.parent = player;
-const hatLantern = MeshBuilder.CreateSphere("hatlantern", { diameter: 0.28 }, scene);
-hatLantern.position.set(0.35, 1.85, 0);
-hatLantern.material = mat(new Color3(1, 0.8, 0.4), new Color3(1, 0.7, 0.25));
-hatLantern.parent = player;
+const mk = (m: Mesh, y: number, material: StandardMaterial, x = 0): Mesh => { m.position.set(x, y, 0); m.material = material; m.parent = player; return m; };
+mk(MeshBuilder.CreateCylinder("pbody", { diameterTop: 0.6, diameterBottom: 0.95, height: 1.1 }, scene), 0.55, mat(PAL.shirt, "#1a1814"));
+mk(MeshBuilder.CreateTorus("scarf", { diameter: 0.62, thickness: 0.2, tessellation: 20 }, scene), 1.12, mat(PAL.scarf, PAL.scarf, 1, 0.25));
+mk(MeshBuilder.CreateSphere("phead", { diameter: 0.6 }, scene), 1.42, mat("#F0CDAE", "#2a2018"));
+mk(MeshBuilder.CreateCylinder("hat", { diameterTop: 0, diameterBottom: 0.95, height: 0.9 }, scene), 2.0, mat(PAL.wood, "#201408"));
+mk(MeshBuilder.CreateSphere("hatlantern", { diameter: 0.28 }, scene), 1.85, mat(PAL.lampCore, PAL.lampOn), 0.35);
+const aura = mk(MeshBuilder.CreateSphere("aura", { diameter: 2.3, segments: 16 }, scene), 1.1, mat(PAL.scarf, PAL.gold, 0.22, 0.8));
+aura.setEnabled(false);
 const playerLight = new PointLight("playerlight", new Vector3(0, 2, 0), scene);
-playerLight.diffuse = new Color3(1, 0.75, 0.4);
-playerLight.range = 14;
-playerLight.intensity = 0.9;
+playerLight.diffuse = C(PAL.lampOn);
+playerLight.range = 16;
+playerLight.intensity = 1.1;
 playerLight.parent = player;
 
-// pulse rings
+// pulse rings and lantern light bursts
 const rings: { mesh: Mesh; age: number }[] = [];
 function spawnPulseRing(): void {
-  const m = MeshBuilder.CreateTorus("ring", { diameter: 2, thickness: 0.12, tessellation: 48 }, scene);
-  m.position.set(sim.player.pos[0], 0.3, sim.player.pos[2]);
-  m.material = mat(new Color3(1, 0.8, 0.4), new Color3(1, 0.8, 0.4), 0.9);
+  const m = MeshBuilder.CreateTorus("ring", { diameter: 2, thickness: 0.14, tessellation: 48 }, scene);
+  m.position.set(sim.player.pos[0], sim.player.pos[1] + 0.4, sim.player.pos[2]);
+  m.material = mat(PAL.lampCore, PAL.lampCore, 0.9);
   rings.push({ mesh: m, age: 0 });
 }
+const lightBursts: { v: LanternView; age: number }[] = [];
 
-// ---------- input ----------
+// wind leaves
+const leafMats = [mat(PAL.wood, "#201408"), mat(PAL.grass, "#10241d")];
+const leaves = Array.from({ length: 42 }, (_, i) => {
+  const m = MeshBuilder.CreatePlane("leaf", { size: 0.55 }, scene);
+  m.material = leafMats[i % 2];
+  m.setEnabled(false);
+  return { m, ox: (Math.random() - 0.5) * 36, oz: (Math.random() - 0.5) * 36, oy: 0.5 + Math.random() * 5, ph: Math.random() * 6 };
+});
+
+// ---------------------------------------------------------------- input
 const keys = new Set<string>();
 let yawDeg = 0;
-let latch = { jump: false, interact: false, pulse: false };
-let started = params.has("autostart");
+let latch = { jump: false, interact: false, pulse: false, dash: false, pause: false };
+type Flow = "menu" | "intro" | "play" | "result" | "dawn";
+let flow: Flow = "menu";
+let currentNight = 1;
+let totalScore = 0;
+let devScenario: Scenario | undefined = params.has("scenario") ? parseScenario(JSON.parse(params.get("scenario")!)) : undefined;
+let devSeed: number | undefined = params.has("seed") ? Number(params.get("seed")) : undefined;
 
 window.addEventListener("keydown", (e) => {
+  audio.ensure();
   if (e.repeat) return;
   const k = e.code;
+  if (k === "Escape" || k === "KeyP") {
+    if (flow === "play") latch.pause = true;
+    else if ($("p-settings").classList.contains("show")) backFromSettings();
+    return;
+  }
+  if (flow !== "play") {
+    if ((k === "Enter" || k === "Space") && flow === "menu" && $("p-menu").classList.contains("show")) $("btn-start").click();
+    else if ((k === "Enter" || k === "Space") && flow === "intro") $("btn-intro-go").click();
+    return;
+  }
   keys.add(k);
   if (k === "Space") { latch.jump = true; e.preventDefault(); }
   if (k === "KeyE") latch.interact = true;
   if (k === "KeyF") latch.pulse = true;
-  if (k === "KeyR") restart();
-  if ((k === "Enter" || k === "Space") && !started) start();
+  if (k === "ShiftLeft" || k === "ShiftRight") latch.dash = true;
+  if (k === "KeyR" && !sim.paused) replayNight();
 });
 window.addEventListener("keyup", (e) => keys.delete(e.code));
+window.addEventListener("blur", () => keys.clear());
 let dragging = false;
 canvas.addEventListener("pointerdown", () => (dragging = true));
 window.addEventListener("pointerup", () => (dragging = false));
 window.addEventListener("pointermove", (e) => {
-  if (dragging) yawDeg += e.movementX * 0.35;
+  if (dragging && flow === "play" && !sim.paused) yawDeg += e.movementX * settings.sens;
 });
 
 function readInput(dtS: number): InputState {
@@ -161,49 +344,174 @@ function readInput(dtS: number): InputState {
   if (keys.has("ArrowLeft")) yawDeg -= 120 * dtS;
   const x = (keys.has("KeyD") ? 1 : 0) - (keys.has("KeyA") ? 1 : 0);
   const z = (keys.has("KeyW") || keys.has("ArrowUp") ? 1 : 0) - (keys.has("KeyS") || keys.has("ArrowDown") ? 1 : 0);
-  return { move: [x, z], cam_yaw_deg: yawDeg, jump: latch.jump, interact: latch.interact, pulse: latch.pulse };
+  return { move: [x, z], cam_yaw_deg: yawDeg, jump: latch.jump, interact: latch.interact, pulse: latch.pulse, dash: latch.dash, pause: latch.pause };
 }
 
-// ---------- HUD / overlay ----------
+// ---------------------------------------------------------------- screens
+const panels = ["p-menu", "p-intro", "p-pause", "p-settings", "p-result", "p-dawn"];
 const overlay = $("overlay");
-function showOverlay(title: string, text: string, btn: string, keysVisible: boolean): void {
-  $("ov-title").textContent = title;
-  $("ov-text").textContent = text;
-  $("ov-btn").textContent = btn;
-  $("ov-keys").style.display = keysVisible ? "" : "none";
-  overlay.classList.remove("hidden");
+let settingsReturn = "p-menu";
+function showPanel(id: string | null): void {
+  overlay.classList.toggle("hidden", id === null);
+  for (const p of panels) $(p).classList.toggle("show", p === id);
 }
-function start(): void {
-  started = true;
-  overlay.classList.add("hidden");
+function backFromSettings(): void {
+  audio.play("ui");
+  showPanel(settingsReturn);
+}
+const INTRO: Record<number, { name: string; quote: string; goal: string }> = {
+  1: { name: "Đảo Bến", quote: "Ông Đăng: “Cháu à, sương đen đã nuốt hết ánh sáng của Đảo Bến. Hãy gom đom đóm và thắp lại năm ngọn Đèn Lồng Lớn.”", goal: "Thắp 5 đèn trong 5:00. Mỗi đèn cần 10 đom đóm." },
+  2: { name: "Đảo Cau", quote: "Ông Đăng: “Hai hòn đảo nối nhau bằng chiếc cầu tre mong manh, không lan can đâu. Gió Lạc thích cướp đom đóm của cháu lắm, nhớ nhờ bục nhảy mà qua đảo.”", goal: "Thắp 6 đèn trong 5:30. Bùa Gió giúp chạy nhanh và lướt liên tục." },
+  3: { name: "Đảo Chuông", quote: "Ông Đăng: “Đây là hòn đảo cuối, nơi treo chiếc chuông cổ. Cẩn thận gió mạnh và những bậc thang cheo leo. Thắp đủ bảy ngọn, bình minh sẽ đến.”", goal: "Thắp 7 đèn trong 6:00. Leo dốc hoặc dùng bục nhảy để lên các tầng." },
+};
+function enterIntro(n: number): void {
+  currentNight = n;
+  prepareNight(n);
+  flow = "intro";
+  $("hud").classList.add("hidden");
+  $("intro-title").textContent = `Đêm ${n} · ${INTRO[n].name}`;
+  $("intro-quote").textContent = INTRO[n].quote;
+  $("intro-goal").textContent = INTRO[n].goal;
+  showPanel("p-intro");
+}
+
+let nightSeed = Date.now() % 2147483647;
+function prepareNight(n: number): void {
+  const scn = devScenario;
+  const seed = devSeed ?? (nightSeed = (nightSeed * 48271) % 2147483647);
+  devScenario = undefined;
+  devSeed = undefined;
+  sim = new Sim(seed, scn ?? {}, n);
+  buildNight(sim.map);
+  for (const v of shadeViews.values()) v.root.dispose();
+  shadeViews.clear();
+  for (const v of drifterViews.values()) v.root.dispose();
+  drifterViews.clear();
+  for (const m of charmViews.values()) m.dispose();
+  charmViews.clear();
+  latch = { jump: false, interact: false, pulse: false, dash: false, pause: false };
+  keys.clear();
+  yawDeg = 0;
+  hudKey = "";
+  lastTickSec = -1;
+  windWarned = false;
+  $("hud-night").textContent = `Đêm ${n} · ${INTRO[n].name}`;
+  (window as unknown as { __game: unknown }).__game = gameHandle();
+}
+function beginNight(): void {
+  flow = "play";
+  showPanel(null);
+  $("hud").classList.remove("hidden");
+  audio.ensure();
+  audio.startMusic(currentNight);
   canvas.focus();
 }
-function restart(): void {
-  if (!started) return;
-  sim = new Sim(Date.now() % 2147483647);
-  (window as unknown as { __game: unknown }).__game = gameHandle();
-  buildLanterns();
-  for (const m of shadeMeshes.values()) m.dispose();
-  shadeMeshes.clear();
-  latch = { jump: false, interact: false, pulse: false };
-  overlay.classList.add("hidden");
-  hudShown = "";
+function replayNight(): void {
+  prepareNight(currentNight);
+  beginNight();
 }
-$("ov-btn").addEventListener("click", () => (sim.state === "playing" ? start() : restart()));
-$("hud-cap").textContent = String(TUNING.carry_capacity);
-$("hud-lanterns-total").textContent = String(TUNING.lantern_count_night1);
+function toMenu(): void {
+  flow = "menu";
+  audio.stopMusic();
+  totalScore = 0;
+  $("hud").classList.add("hidden");
+  showPanel("p-menu");
+}
+function showDawn(): void {
+  flow = "dawn";
+  audio.stopMusic();
+  $("dawn-score").textContent = String(totalScore);
+  showPanel("p-dawn");
+}
 
-let hudShown = "";
+const click = (id: string, fn: () => void) => $(id).addEventListener("click", () => { audio.ensure(); audio.play("ui"); fn(); });
+click("btn-start", () => { totalScore = 0; enterIntro(1); });
+click("btn-menu-settings", () => { settingsReturn = "p-menu"; showPanel("p-settings"); });
+click("btn-intro-go", beginNight);
+click("btn-resume", () => { latch.pause = true; });
+click("btn-replay", replayNight);
+click("btn-pause-settings", () => { settingsReturn = "p-pause"; showPanel("p-settings"); });
+click("btn-pause-menu", toMenu);
+click("btn-settings-back", () => showPanel(settingsReturn));
+click("btn-next", () => { if (currentNight >= 3) showDawn(); else enterIntro(currentNight + 1); });
+click("btn-res-replay", replayNight);
+click("btn-res-menu", toMenu);
+click("btn-dawn-menu", toMenu);
+const volEl = $<HTMLInputElement>("set-volume");
+const sensEl = $<HTMLInputElement>("set-sens");
+volEl.value = String(Math.round(settings.volume * 100));
+sensEl.value = String(Math.round(settings.sens * 100));
+volEl.addEventListener("input", () => { settings.volume = Number(volEl.value) / 100; audio.setVolume(settings.volume); saveSettings(); });
+sensEl.addEventListener("input", () => { settings.sens = Number(sensEl.value) / 100; saveSettings(); });
+
+// ---------------------------------------------------------------- HUD
+const flames = [$("fl0"), $("fl1"), $("fl2")];
+const bar = $("hud-bar");
+for (let i = 0; i < TUNING.carry_capacity; i++) { const s = document.createElement("div"); s.className = "slot"; bar.appendChild(s); }
+const slots = Array.from(bar.children) as HTMLElement[];
+let hudKey = "";
+let lastTickSec = -1;
+let windWarned = false;
+const fmtClock = (s: number): string => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+
+function cooldownIcon(id: string, nid: string, frac: number, total: number, label: string, dim: boolean): void {
+  const el = $(id);
+  el.style.background = `conic-gradient(rgba(14,20,48,0.85) ${frac * 360}deg, rgba(242,193,78,0.35) 0deg)`;
+  el.classList.toggle("ready", frac <= 0);
+  el.classList.toggle("dim", dim);
+  $(nid).textContent = frac > 0 ? (frac * total).toFixed(1) : label;
+}
+
 function updateHud(): void {
+  const p = sim.player;
   const lit = sim.lanterns.filter((l) => l.lit).length;
-  const key = `${sim.player.flames}|${sim.player.carried}|${lit}|${sim.score}|${Math.ceil(sim.timeLeftS)}`;
-  if (key === hudShown) return;
-  hudShown = key;
-  $("hud-flames").textContent = String(sim.player.flames);
-  $("hud-carried").textContent = String(sim.player.carried);
-  $("hud-lanterns").textContent = String(lit);
-  $("hud-score").textContent = String(sim.score);
-  $("hud-time").textContent = String(Math.max(0, Math.ceil(sim.timeLeftS)));
+  const secs = Math.max(0, Math.ceil(sim.timeLeftS));
+  const dashFrac = p.charm > 0 ? 0 : p.dashCd / (TUNING.dash_cooldown_s * K.tps);
+  const pulseFrac = p.pulseCd / (TUNING.pulse_cooldown_s * K.tps);
+  const key = `${p.flames}|${p.carried}|${lit}|${sim.score}|${secs}|${Math.ceil(p.dashCd / 6)}|${Math.ceil(p.pulseCd / 6)}|${p.charm > 0}`;
+  if (key !== hudKey) {
+    hudKey = key;
+    flames.forEach((f, i) => f.classList.toggle("off", i >= p.flames));
+    slots.forEach((s, i) => s.classList.toggle("on", i < p.carried));
+    $("hud-lanterns").textContent = `${lit}/${sim.lanterns.length}`;
+    $("hud-score").textContent = String(sim.score);
+    $("hud-clock").textContent = fmtClock(secs);
+    $("hud-clock").classList.toggle("low", secs <= 30);
+    cooldownIcon("hud-dash", "hud-dash-n", dashFrac, TUNING.dash_cooldown_s, "Shift", false);
+    cooldownIcon("hud-pulse", "hud-pulse-n", pulseFrac, TUNING.pulse_cooldown_s, "F", p.carried < TUNING.pulse_cost);
+  }
+  // "E - nap anh sang (x/10)" near an unlit lantern; arrow to the nearest unlit lantern when off screen
+  let near: { l: (typeof sim.lanterns)[number]; d: number } | null = null;
+  for (const l of sim.lanterns) {
+    if (l.lit) continue;
+    const d = Math.hypot(l.pos[0] - p.pos[0], l.pos[2] - p.pos[2]);
+    if (!near || d < near.d) near = { l, d };
+  }
+  const prompt = $("hud-prompt");
+  if (near && near.d <= TUNING.interact_radius) {
+    prompt.style.display = "block";
+    $("hud-prompt-x").textContent = String(near.l.deposited);
+  } else prompt.style.display = "none";
+  const arrow = $("hud-arrow");
+  if (near) {
+    const w = engine.getRenderWidth(), h = engine.getRenderHeight();
+    const sp = Vector3.Project(new Vector3(near.l.pos[0], near.l.pos[1] + 3.5, near.l.pos[2]), Matrix.IdentityReadOnly, scene.getTransformMatrix(), camera.viewport.toGlobal(w, h));
+    const behind = sp.z > 1 || sp.z < 0;
+    const inside = !behind && sp.x > 40 && sp.x < w - 40 && sp.y > 40 && sp.y < h - 40;
+    if (inside) arrow.style.display = "none";
+    else {
+      let dx = sp.x - w / 2, dy = sp.y - h / 2;
+      if (behind) { dx = -dx; dy = -dy; }
+      const ang = Math.atan2(dy, dx);
+      const rx = w / 2 - 60, ry = h / 2 - 60;
+      const t = 1 / Math.max(Math.abs(Math.cos(ang)) / rx, Math.abs(Math.sin(ang)) / ry);
+      const sx = canvas.clientWidth / w, sy = canvas.clientHeight / h;
+      arrow.style.display = "block";
+      arrow.style.left = `${(w / 2 + Math.cos(ang) * t) * sx - 14}px`;
+      arrow.style.top = `${(h / 2 + Math.sin(ang) * t) * sy - 15}px`;
+      arrow.style.transform = `rotate(${(ang * 180) / Math.PI + 90}deg)`;
+    }
+  } else arrow.style.display = "none";
 }
 
 const flash = $("flash");
@@ -212,133 +520,252 @@ function hitFlash(): void {
   setTimeout(() => flash.classList.remove("on"), 60);
 }
 
-// Read-only handle for tests/debugging (tests/e2e.mjs).
-function gameHandle() {
-  return { sim, TUNING, get yaw() { return yawDeg; } };
+function handleEvents(events: ReturnType<Sim["step"]>): void {
+  for (const ev of events) {
+    switch (ev.name) {
+      case "mote_picked": audio.play("pick"); break;
+      case "deposit": audio.play("pick"); break;
+      case "lantern_lit": {
+        audio.play("light");
+        const idx = sim.lanterns.findIndex((l) => l.id === ev.data.lantern_id);
+        if (idx >= 0 && lanternViews[idx]) lightBursts.push({ v: lanternViews[idx], age: 0 });
+        break;
+      }
+      case "pulse": audio.play("pulse"); spawnPulseRing(); break;
+      case "player_hit": audio.play("hit"); hitFlash(); break;
+      case "shade_spawned": audio.play("spawn"); break;
+      case "dash": audio.play("dash"); break;
+      case "charm_picked": audio.play("charm"); break;
+      case "drifter_steal": audio.play("steal"); break;
+      case "drifter_drop": audio.play("pick"); break;
+      case "game_over": onGameOver(ev.data.result === "won", String(ev.data.reason)); break;
+      case "paused": showPanel("p-pause"); break;
+      case "resumed": showPanel(null); break;
+    }
+  }
 }
 
-// ---------- main loop ----------
-(window as unknown as { __game: unknown }).__game = gameHandle();
+function onGameOver(won: boolean, reason: string): void {
+  flow = "result";
+  audio.stopMusic();
+  audio.play(won ? "win" : "lose");
+  const why: Record<string, string> = {
+    all_lit: "Tất cả Đèn Lồng Lớn đã sáng. Đảo được cứu!",
+    no_flames: "Ngọn Lửa của Mây đã tắt.",
+    dawn: "Trời đã sáng mà vẫn còn đèn chưa được thắp.",
+  };
+  if (won) totalScore += sim.score;
+  $("res-title").textContent = won ? `Đêm ${currentNight} hoàn thành!` : "Thua rồi";
+  $("res-text").textContent = `${why[reason] ?? ""} Điểm đêm này: ${sim.score}.${won ? ` Tổng điểm: ${totalScore}.` : ""}`;
+  $("btn-next").style.display = won ? "block" : "none";
+  $("btn-next").textContent = currentNight >= 3 ? "Xem Bình Minh" : "Đêm kế tiếp";
+  showPanel("p-result");
+}
+
+// ---------------------------------------------------------------- main loop
+function gameHandle() {
+  return { sim, TUNING, get yaw() { return yawDeg; }, get flow() { return flow; }, get night() { return currentNight; }, get total() { return totalScore; } };
+}
 let acc = 0;
-let facing = 0;
 let tNow = 0;
 
 engine.runRenderLoop(() => {
+  if (!sim) return;
   const dt = Math.min(engine.getDeltaTime() / 1000, 0.1);
   tNow += dt;
 
-  if (started && sim.state === "playing") {
+  if (flow === "play" && sim.state === "playing") {
     acc += dt;
     let guard = 0;
-    while (acc >= WORLD.dt && guard++ < 6) {
-      acc -= WORLD.dt;
-      const input = readInput(WORLD.dt);
-      const mx = input.move[0], mz = input.move[1];
-      if (mx !== 0 || mz !== 0) {
-        const th = (yawDeg * Math.PI) / 180;
-        facing = Math.atan2(mx * Math.cos(th) + mz * Math.sin(th), -mx * Math.sin(th) + mz * Math.cos(th));
-      }
+    while (acc >= K.dt && guard++ < 6) {
+      acc -= K.dt;
+      const input = readInput(K.dt);
+      if (input.jump && sim.player.grounded && !sim.paused) audio.play("jump");
       const events = sim.step(input);
-      latch = { jump: false, interact: false, pulse: false };
-      for (const ev of events) {
-        if (ev.name === "pulse") spawnPulseRing();
-        if (ev.name === "player_hit") hitFlash();
-        if (ev.name === "game_over") {
-          const won = ev.data.result === "won";
-          const reasons: Record<string, string> = {
-            all_lit: "Cả 5 Đèn Lồng Lớn đã sáng. Đảo Bến được cứu!",
-            no_flames: "Ngọn lửa của Mây đã tắt.",
-            dawn: "Trời sáng nhưng vẫn còn đèn chưa được thắp.",
-          };
-          showOverlay(won ? "Chiến thắng!" : "Thua rồi", `${reasons[String(ev.data.reason)] ?? ""} Điểm: ${sim.score}.`, "Chơi lại", false);
-        }
-      }
+      latch = { jump: false, interact: false, pulse: false, dash: false, pause: false };
+      handleEvents(events);
+      if (flow !== "play") break;
     }
   }
 
-  syncScene();
-  updateHud();
+  syncScene(dt);
+  if (flow === "play" || flow === "result") updateHud();
+  const secs = Math.ceil(sim.timeLeftS);
+  if (flow === "play" && !sim.paused && secs <= 10 && secs > 0 && secs !== lastTickSec) { lastTickSec = secs; audio.play("tick"); }
   scene.render();
 });
 
-function syncScene(): void {
+function syncScene(dt: number): void {
   const p = sim.player;
+  const map = sim.map;
   player.position.set(p.pos[0], p.pos[1], p.pos[2]);
-  player.rotation.y = facing;
-  
+  player.rotation.y = Math.atan2(p.facing[0], p.facing[1]);
+  player.scaling.z = p.dashLeft > 0 ? 1.45 : 1;
+  aura.setEnabled(p.charm > 0);
+  if (p.charm > 0) aura.scaling.setAll(1 + Math.sin(tNow * 8) * 0.05);
+  player.setEnabled(!(p.fallWait > 0));
 
-  // lanterns
-  let litCount = 0;
+  // lanterns; ambient light = 0.15 + 0.55 * lit / total
+  const litCount = sim.lanterns.filter((l) => l.lit).length;
+  hemi.intensity = 0.15 + 0.55 * (litCount / Math.max(1, sim.lanterns.length));
   sim.lanterns.forEach((l, i) => {
     const v = lanternViews[i];
     if (!v) return;
-    if (l.lit) litCount++;
+    const bm = v.body.material as StandardMaterial;
     if (v.lit !== l.lit) {
       v.lit = l.lit;
-      (v.body.material as StandardMaterial).emissiveColor = l.lit ? LIT : UNLIT;
-      v.light.intensity = l.lit ? 1.4 : 0;
+      bm.diffuseColor = C(l.lit ? PAL.lampOn : PAL.lampOff);
+      bm.emissiveColor = C(l.lit ? PAL.lampOn : "#000000");
+      v.core.setEnabled(l.lit);
+      v.zone.setEnabled(l.lit);
+      v.light.intensity = l.lit ? 1.5 : 0;
     } else if (!l.lit && l.deposited > 0) {
-      const f = l.deposited / TUNING.lantern_cost;
-      (v.body.material as StandardMaterial).emissiveColor = Color3.Lerp(UNLIT, LIT, f * 0.6);
+      bm.emissiveColor = Color3.Lerp(C("#000000"), C(PAL.lampOn), (l.deposited / TUNING.lantern_cost) * 0.6);
     }
   });
-  const f = litCount / Math.max(1, sim.lanterns.length);
-  scene.fogDensity = 0.03 - 0.016 * f;
-  hemi.intensity = 0.7 + 0.5 * f;
+  for (let i = lightBursts.length - 1; i >= 0; i--) {
+    const b = lightBursts[i];
+    b.age += dt;
+    b.v.light.intensity = 1.5 + Math.max(0, 1 - b.age / 0.8) * 5;
+    if (b.age > 0.8) lightBursts.splice(i, 1);
+  }
 
   // fireflies
-  while (moteMeshes.length < sim.motes.length) {
-    const m = MeshBuilder.CreateSphere("mote", { diameter: 0.4, segments: 6 }, scene);
-    m.material = moteMat;
-    moteMeshes.push(m);
-  }
-  moteMeshes.forEach((m, i) => {
-    const pos = sim.motes[i];
-    m.setEnabled(!!pos);
-    if (pos) m.position.set(pos[0], 0.9 + Math.sin(tNow * 2.5 + i) * 0.25, pos[2]);
+  while (moteViews.length < sim.motes.length) moteViews.push(moteBase.createInstance("mote"));
+  moteViews.forEach((m, i) => {
+    const mo = sim.motes[i];
+    let on = !!mo;
+    if (mo) {
+      if (mo.kind === "dropped" && mo.ttl !== null && mo.ttl < 90 && Math.floor(tNow * 8) % 2 === 0) on = false;
+      m.position.set(mo.pos[0], mo.pos[1] + 0.9 + Math.sin(tNow * 2.5 + i) * 0.25, mo.pos[2]);
+      m.scaling.setAll(mo.kind === "dropped" ? 0.8 : 1);
+    }
+    m.setEnabled(on);
   });
 
-  // shades
-  const alive = new Set<string>();
-  for (const s of sim.shades) {
-    alive.add(s.id);
-    let m = shadeMeshes.get(s.id);
+  // charms
+  for (const c of sim.charms) {
+    let m = charmViews.get(c.id);
     if (!m) {
-      m = MeshBuilder.CreateSphere("shade", { diameter: 1.5, segments: 10 }, scene);
-      shadeMeshes.set(s.id, m);
+      m = MeshBuilder.CreateSphere("charm", { diameter: 1, segments: 10 }, scene);
+      m.scaling.set(0.55, 0.08, 0.9);
+      m.material = mat(PAL.scarf, PAL.scarf, 1, 0.6);
+      const rim = MeshBuilder.CreateTorus("charmrim", { diameter: 0.95, thickness: 0.07, tessellation: 24 }, scene);
+      rim.material = mat(PAL.gold, PAL.gold);
+      rim.parent = m;
+      rim.scaling.set(1.8, 12, 1.1);
+      charmViews.set(c.id, m);
     }
-    m.material = s.state === "stunned" ? shadeMatStun : shadeMatChase;
-    m.position.set(s.pos[0], 0.9 + Math.sin(tNow * 3) * 0.1, s.pos[2]);
+    m.setEnabled(c.available);
+    m.position.set(c.pos[0], c.pos[1] + 1.1 + Math.sin(tNow * 2) * 0.15, c.pos[2]);
+    m.rotation.y = tNow * 1.5;
+  }
+
+  // shades
+  const aliveS = new Set<string>();
+  for (const s of sim.shades) {
+    aliveS.add(s.id);
+    let v = shadeViews.get(s.id);
+    if (!v) {
+      const root = new TransformNode("shade", scene);
+      const body = MeshBuilder.CreateSphere("sbody", { diameter: 1.5, segments: 10 }, scene);
+      const rim = MeshBuilder.CreateSphere("srim", { diameter: 1.9, segments: 10 }, scene);
+      body.parent = root;
+      rim.parent = root;
+      rim.material = shadeMats.rim;
+      v = { root, body, rim };
+      shadeViews.set(s.id, v);
+    }
+    v.body.material = s.state === "stunned" ? shadeMats.stun : shadeMats.body;
+    v.rim.setEnabled(s.state !== "stunned");
+    v.root.position.set(s.pos[0], s.pos[1] + 0.4 + Math.sin(tNow * 3 + s.pos[0]) * 0.1, s.pos[2]);
     const w = 1 + Math.sin(tNow * 5 + s.pos[0]) * 0.08;
-    m.scaling.set(w, 1.25 / w, w);
+    const grow = s.state === "spawning" ? 0.35 + 0.65 * (1 - s.left / K.shadeSpawningTicks) : 1;
+    v.root.scaling.set(w * grow, (1.25 / w) * grow, w * grow);
   }
-  for (const [id, m] of shadeMeshes) {
-    if (!alive.has(id)) {
-      m.dispose();
-      shadeMeshes.delete(id);
+  for (const [id, v] of shadeViews) if (!aliveS.has(id)) { v.root.dispose(); shadeViews.delete(id); }
+
+  // drifters
+  const aliveD = new Set<string>();
+  for (const d of sim.drifters) {
+    aliveD.add(d.id);
+    let v = drifterViews.get(d.id);
+    if (!v) {
+      const root = new TransformNode("drifter", scene);
+      const m = mat(PAL.drifter, PAL.drifter, 0.8, 0.5);
+      for (let i = 0; i < 4; i++) {
+        const seg = MeshBuilder.CreateSphere("dseg", { diameter: 0.9 - i * 0.18, segments: 8 }, scene);
+        seg.material = m;
+        seg.parent = root;
+        seg.position.z = -i * 0.65;
+        seg.scaling.set(1, 0.4, 1.3);
+      }
+      v = { root, mats: m };
+      drifterViews.set(d.id, v);
     }
+    v.root.setEnabled(d.state !== "removed");
+    v.root.position.set(d.pos[0], d.pos[1] + Math.sin(tNow * 3 + d.pos[0]) * 0.2, d.pos[2]);
+    v.root.getChildMeshes().forEach((c, i) => (c.position.x = Math.sin(tNow * 6 - i) * 0.35));
+    v.mats.emissiveColor = C(d.stolen > 0 ? PAL.gold : PAL.drifter).scale(0.6);
+    const dx = d.state === "flee" ? d.pos[0] - p.pos[0] : p.pos[0] - d.pos[0];
+    const dz = d.state === "flee" ? d.pos[2] - p.pos[2] : p.pos[2] - d.pos[2];
+    if (d.state !== "idle") v.root.rotation.y = Math.atan2(dx, dz);
+    else v.root.rotation.y += dt * 0.8;
   }
+  for (const [id, v] of drifterViews) if (!aliveD.has(id)) { v.root.dispose(); drifterViews.delete(id); }
 
   // pulse rings
   for (let i = rings.length - 1; i >= 0; i--) {
     const r = rings[i];
-    r.age += engine.getDeltaTime() / 1000;
+    r.age += dt;
     const k = Math.min(r.age / 0.45, 1);
     const s = Math.max(0.05, k * TUNING.pulse_radius);
     r.mesh.scaling.set(s, 1, s);
     (r.mesh.material as StandardMaterial).alpha = 0.9 * (1 - k);
-    if (k >= 1) {
-      r.mesh.dispose();
-      rings.splice(i, 1);
-    }
+    if (k >= 1) { r.mesh.dispose(); rings.splice(i, 1); }
   }
 
-  // third-person camera
+  // wind: warning 2 s before, leaves while blowing
+  let warn = false;
+  if (map.wind && !sim.windActive) {
+    const nextStart = sim.simTick < K.windFirst ? K.windFirst : K.windFirst + K.windEvery * Math.ceil((sim.simTick - K.windFirst + 1) / K.windEvery);
+    const until = nextStart - sim.simTick;
+    warn = until <= 120 && until > 0;
+    if (warn && !windWarned) { windWarned = true; audio.play("wind"); }
+    if (!warn && until > 120) windWarned = false;
+  }
+  $("warn").style.display = warn || sim.windActive ? "block" : "none";
+  $("warn").textContent = sim.windActive ? "Gió mạnh đang thổi!" : "Gió mạnh sắp tới!";
+  const leavesOn = warn || sim.windActive;
+  const wdx = Math.cos((sim.windDir * Math.PI) / 180), wdz = Math.sin((sim.windDir * Math.PI) / 180);
+  for (const lf of leaves) {
+    lf.m.setEnabled(leavesOn);
+    if (!leavesOn) continue;
+    if (sim.windActive) { lf.ox += wdx * 9 * dt; lf.oz += wdz * 9 * dt; }
+    else { lf.ox += Math.sin(tNow + lf.ph) * 1.5 * dt; lf.oz += Math.cos(tNow * 0.8 + lf.ph) * 1.5 * dt; }
+    if (lf.ox > 18) lf.ox -= 36;
+    if (lf.ox < -18) lf.ox += 36;
+    if (lf.oz > 18) lf.oz -= 36;
+    if (lf.oz < -18) lf.oz += 36;
+    lf.m.position.set(p.pos[0] + lf.ox, p.pos[1] + lf.oy + Math.sin(tNow * 2 + lf.ph) * 0.4, p.pos[2] + lf.oz);
+    lf.m.rotation.set(tNow * 2 + lf.ph, tNow * 3, 0);
+  }
+
+  // third-person camera (follows height, so the tiers of Night 3 work)
   const th = (yawDeg * Math.PI) / 180;
   const fx = Math.sin(th), fz = Math.cos(th);
-  camera.position.set(p.pos[0] - fx * 9, 5.5 + p.pos[1] * 0.5, p.pos[2] - fz * 9);
-  camera.setTarget(new Vector3(p.pos[0] + fx * 2, 1.5, p.pos[2] + fz * 2));
+  camera.position.set(p.pos[0] - fx * 9, p.pos[1] + 5.5, p.pos[2] - fz * 9);
+  camera.setTarget(new Vector3(p.pos[0] + fx * 2, p.pos[1] + 1.5, p.pos[2] + fz * 2));
 }
 
 window.addEventListener("resize", () => engine.resize());
-if (started) overlay.classList.add("hidden");
+
+// ---------------------------------------------------------------- boot
+if (params.has("autostart")) {
+  currentNight = Number(params.get("night") ?? 1);
+  prepareNight(currentNight);
+  beginNight();
+} else {
+  prepareNight(1);
+  showPanel("p-menu");
+}

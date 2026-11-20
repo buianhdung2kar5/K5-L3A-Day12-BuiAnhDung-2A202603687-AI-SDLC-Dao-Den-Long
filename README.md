@@ -2,38 +2,33 @@
 
 > Video demo: _chưa có (sẽ thêm ở Phase 4)_
 
-## Bản làm của tôi (Phase 1)
+## Bản làm của tôi (Phase 2: "Ba hòn đảo")
 
-Game 3D góc nhìn thứ ba, TypeScript + Babylon.js. Phần mô phỏng (`src/sim`) tách khỏi hiển thị, dùng chung cho game và chế độ headless.
+Game 3D góc nhìn thứ ba, TypeScript + Babylon.js, 3 Đêm: **Đảo Bến**, **Đảo Cau** (hai đảo, cầu tre, bục nhảy, Gió Lạc, Bùa Gió) và **Đảo Chuông** (3 tầng, dốc, tháp chuông, gió mạnh). Phần mô phỏng (`src/sim`) tách khỏi hiển thị, dùng chung cho game và chế độ headless (Test Contract v1.1).
 
 **Cài đặt và chạy** (cần Node 18+, chạy trên macOS/Linux/Windows):
 
 ```bash
 npm install
 npm run build
-npm start        # mở http://localhost:8080
+npm start        # mở http://localhost:8080 (đổi cổng: PORT=3000 npm start)
 ```
 
-**Điều khiển:** WASD đi · Space nhảy · E nạp đom đóm vào đèn · F phát sáng đẩy bóng (tốn 1 đom đóm) · mũi tên trái/phải hoặc kéo chuột để xoay camera · R chơi lại.
+**Điều khiển:** WASD (hoặc mũi tên lên/xuống) đi · Space nhảy · **Shift lướt** · E nạp đom đóm vào đèn · F Tỏa Sáng (tốn 3 đom đóm) · mũi tên trái/phải hoặc kéo chuột xoay camera · **Esc/P tạm dừng** · R chơi lại Đêm. Menu Cài đặt (âm lượng, độ nhạy chuột) được lưu trong trình duyệt.
 
-**Luật:** nhặt đom đóm (chạm vào), đứng gần Đèn Lồng và bấm E để nạp; mỗi đèn cần 5 đom đóm. Thắp đủ 5 đèn trong 180 giây thì thắng. Bóng Mực chạm vào sẽ mất 1 lửa (có 3 lửa) và rơi một nửa số đom đóm đang mang; hết lửa hoặc hết giờ thì thua. Bóng không vào được vùng quanh đèn.
+**Luật:** nhặt đom đóm (tự động khi lại gần), đứng gần Đèn Lồng và bấm E để nạp; mỗi đèn cần 10 đom đóm và nhớ tiến độ. Thắp hết đèn trước khi hết giờ (300/330/360 s). Bóng Mực chạm vào: -1 Ngọn Lửa (có 3) và rơi một nửa số đom đóm đang mang; rơi khỏi đảo cũng mất 1 Ngọn Lửa và toàn bộ đom đóm rồi hồi sinh sau 1 giây. Gió Lạc cướp tối đa 3 đom đóm; Tỏa Sáng làm Bóng Mực choáng và đẩy lùi. Bùa Gió: chạy 7.2 m/s và lướt không hồi chiêu trong 10 giây. Vùng quanh đèn đã sáng (6 m) Bóng Mực không vào được.
 
-**Điểm:** +10 mỗi đom đóm, +100 mỗi đèn thắp, +20 mỗi bóng bị choáng, khi thắng thêm +1 mỗi giây còn lại và +50 mỗi lửa còn lại.
+**Điểm:** +10 mỗi đom đóm nạp · +100 mỗi đèn · +5 mỗi Bóng Mực trúng Tỏa Sáng · khi thắng: `floor(giây còn lại) × 2 + 50 × Ngọn Lửa còn lại`. Tổng điểm là tổng các Đêm đã thắng; thắng Đêm 3 thì tới màn Bình Minh.
 
 **Headless và test:**
 
 ```bash
-node dist/headless.js --seed 1 --night 1 --ticks 600 --out out.jsonl [--scenario s.json] [--inputs i.json] [--snapshot-every 10]
-npm test         # build + 24 case, ghi kết quả vào docs/proof/phase1/
-npm run e2e      # điều khiển game thật trong Chrome headless (cần Chrome), đo FPS
+node dist/headless.js --seed 1 --night 2 --ticks 600 --out out.jsonl [--scenario s.json] [--inputs i.json] [--snapshot-every 10]
+npm test         # build + 95 kiểm tra headless (tính tay, tất định, hiệu năng), ghi vào docs/proof/phase2/
+npm run e2e      # điều khiển game thật trong Chrome headless (cần Chrome), đo FPS bằng GPU thật
 ```
 
-Khai báo contract: [game.contract.json](game.contract.json). Giả định và tiêu chí nghiệm thu: [docs/notes/phase1-assumptions.md](docs/notes/phase1-assumptions.md). Bằng chứng: [docs/proof/phase1/](docs/proof/phase1/). Nhật ký dùng AI và retro: [docs/notes/phase1-ai-log-and-retro.md](docs/notes/phase1-ai-log-and-retro.md).
-
----
-
-> **Cá nhân** (1 người / 1 MSSV) · Áp dụng SDLC cùng AI để xây một **game 3D** qua **4 phase**, từ yêu cầu ban đầu tới bản phát hành.
-> **Lab board + trợ giảng:** **[Đảo Đèn Lồng Lab](https://claude.ai/artifact/Q1RYyv1dxjUczzCbd2ZnoW)**
+Khai báo contract: [game.contract.json](game.contract.json) (v1.1). Yêu cầu và giả định: [docs/notes/ticket-02.md](docs/notes/ticket-02.md), [docs/notes/phase2-assumptions.md](docs/notes/phase2-assumptions.md). Bằng chứng: [docs/proof/phase2/](docs/proof/phase2/) (Phase 1: [docs/proof/phase1/](docs/proof/phase1/), tag `phase-1`). Nhật ký dùng AI và retro: [Phase 1](docs/notes/phase1-ai-log-and-retro.md), [Phase 2](docs/notes/phase2-ai-log-and-retro.md). Hồi quy Phase 1 → 2: [docs/notes/phase2-regression.md](docs/notes/phase2-regression.md).
 
 ---
 
