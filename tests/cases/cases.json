@@ -7267,6 +7267,147 @@
    "expect_exit": 2
   },
   {
+   "name": "bench_scene_has_no_gameplay",
+   "covers": [
+    "U1"
+   ],
+   "why": "Benchmark scene flag: an adjacent chasing shade does no damage, lanterns do not lose fuel, nothing is picked up and the Night does not end at dawn (time_left 0.05 s = 3 ticks, still playing at tick 100).",
+   "args": {
+    "seed": 1,
+    "ticks": 100,
+    "night": 1
+   },
+   "snapshot_every": 100,
+   "scenario": {
+    "bench": true,
+    "random_motes": false,
+    "random_shades": false,
+    "random_drifters": false,
+    "wind_enabled": false,
+    "time_left_s": 0.05,
+    "motes": [
+     [
+      0.5,
+      0
+     ]
+    ],
+    "lanterns": [
+     {
+      "id": "L1",
+      "lit": true
+     }
+    ],
+    "shades": [
+     {
+      "id": "A",
+      "pos": [
+       0.5,
+       0.5,
+       0
+      ]
+     }
+    ]
+   },
+   "expect": {
+    "events": [],
+    "end": {
+     "ticks": 100,
+     "state": "playing",
+     "score": 0
+    },
+    "snapshots": [
+     {
+      "tick": 100,
+      "match": {
+       "state": "playing",
+       "player": {
+        "flames": 3,
+        "carried": 0
+       },
+       "motes_active": 1,
+       "lanterns": [
+        {
+         "lit": true,
+         "fuel": 100
+        },
+        {},
+        {},
+        {},
+        {}
+       ]
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "bench_shades_keep_wandering",
+   "covers": [
+    "U1"
+   ],
+   "why": "In the benchmark scene shades stay in state wander (no chase even next to Mây) and keep moving toward the nearest unlit lantern: shade at (5,0) heads for L4/L5-ish unlit lanterns and is still wander at tick 60.",
+   "args": {
+    "seed": 1,
+    "ticks": 60,
+    "night": 1
+   },
+   "snapshot_every": 60,
+   "scenario": {
+    "bench": true,
+    "random_motes": false,
+    "random_shades": false,
+    "random_drifters": false,
+    "wind_enabled": false,
+    "motes": [],
+    "lanterns": [
+     {
+      "id": "L1",
+      "lit": true
+     },
+     {
+      "id": "L2",
+      "lit": true
+     },
+     {
+      "id": "L3",
+      "lit": true
+     }
+    ],
+    "shades": [
+     {
+      "id": "A",
+      "pos": [
+       5,
+       0.5,
+       0
+      ],
+      "state": "wander"
+     }
+    ]
+   },
+   "expect": {
+    "events": [],
+    "end": {
+     "ticks": 60,
+     "state": "playing",
+     "score": 0
+    },
+    "snapshots": [
+     {
+      "tick": 60,
+      "match": {
+       "shades": [
+        {
+         "id": "A",
+         "state": "wander"
+        }
+       ]
+      }
+     }
+    ]
+   }
+  },
+  {
    "name": "cli_night_out_of_range",
    "covers": [
     "S17"

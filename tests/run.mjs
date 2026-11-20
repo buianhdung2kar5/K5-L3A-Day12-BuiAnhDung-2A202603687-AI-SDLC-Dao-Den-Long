@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const bin = join(root, "dist", "headless.js");
-const proofDir = join(root, "docs", "proof", "phase3");
+const proofDir = join(root, "docs", "proof", "phase4");
 const runsDir = join(proofDir, "runs");
 rmSync(runsDir, { recursive: true, force: true });
 mkdirSync(runsDir, { recursive: true });
@@ -186,6 +186,92 @@ for (const night of [1, 2, 3]) {
   add(`perf_night${night}`, "S18", "21,600 ticks (6 minutes of play) with a snapshot every 10 ticks must finish in <= 30 s.", errs, `${ms} ms`);
   rmSync(join(runsDir, `perf_night${night}.jsonl`), { force: true });
 }
+
+
+// ---- Soak (Ticket-04): 10 Nights in one process, no crash, RSS at the end <= 1.2 x RSS at the start
+{
+  const soakOut = join(work, "soak.json");
+  const r = spawnSync("node", [join(root, "dist", "soak.js"), "--seed", "7", "--nights", "10", "--out", soakOut], { encoding: "utf8" });
+  const errs = [];
+  if (r.status !== 0) errs.push(`exit ${r.status}: ${r.stderr}`);
+  else {
+    const j = JSON.parse(readFileSync(soakOut, "utf8"));
+    if (j.nights !== 10 || j.results.length !== 10) errs.push("expected 10 Nights / 10 results");
+    if (j.crashes !== 0) errs.push(`crashes = ${j.crashes}`);
+    if (!(j.mem_end_mb <= 1.2 * j.mem_start_mb)) errs.push(`mem_end ${j.mem_end_mb} > 1.2 x mem_start ${j.mem_start_mb}`);
+    if (!j.results.every((x) => x === "won" || x === "lost")) errs.push("results must be won/lost: " + j.results.join(","));
+    for (const k of ["nights", "crashes", "results", "mem_start_mb", "mem_end_mb", "duration_s"]) if (!(k in j)) errs.push(`missing ${k}`);
+    writeFileSync(join(proofDir, "soak-run.json"), JSON.stringify(j) + "\n");
+    add("soak_10_nights", "U2", "node dist/soak.js --seed 7 --nights 10: 10 Nights (1->2->3 rotating) in one process, crashes 0, mem_end <= 1.2 x mem_start, all results won/lost.", errs, `mem ${j.mem_start_mb} -> ${j.mem_end_mb} MB, ${j.duration_s} s`);
+  }
+  if (r.status !== 0) add("soak_10_nights", "U2", "soak run", errs);
+}
+{
+  const a = join(work, "soak-a.json");
+  const b = join(work, "soak-b.json");
+  spawnSync("node", [join(root, "dist", "soak.js"), "--seed", "7", "--nights", "4", "--out", a]);
+  spawnSync("node", [join(root, "dist", "soak.js"), "--seed", "7", "--nights", "4", "--out", b]);
+  const ja = JSON.parse(readFileSync(a, "utf8"));
+  const jb = JSON.parse(readFileSync(b, "utf8"));
+  const errs = JSON.stringify(ja.results) === JSON.stringify(jb.results) ? [] : ["results differ between two runs with the same seed"];
+  add("soak_is_deterministic", "U2", "Same seed -> same per-Night results.", errs);
+}
+{
+  const bad = spawnSync("node", [join(root, "dist", "soak.js"), "--seed", "x", "--nights", "2", "--out", join(work, "x.json")], { encoding: "utf8" });
+  add("soak_bad_args", "U2", "Bad arguments exit with code 2.", bad.status === 2 ? [] : [`exit ${bad.status}`]);
+}
+
+// ---- Leaderboard server logic (Ticket-04 part 3)
+{
+  const lb = await import("../scripts/server.mjs");
+  const file = join(work, "lb", "leaderboard.json");
+  const t = (i) => new Date(Date.UTC(2026, 10, 20, 8, 0, i));
+  const errs = [];
+  const check = (cond, msg) => cond || errs.push(msg);
+  for (const [name, score] of [["Ann", 300], ["Bob", 500], ["Cid", 300], ["Dan", 100]]) lb.addEntry({ name, score, nights_won: 1, seed: 1 }, file, t(errs.length + score));
+  let e = lb.readEntries(file);
+  check(e.map((x) => x.name).join() === "Bob,Ann,Cid,Dan", "order by score desc, ties: earlier first: " + e.map((x) => x.name).join());
+  check(e.every((x) => /^\d{4}-\d\d-\d\dT[\d:.]+(Z|[+-]\d\d:\d\d)$/.test(x.achieved_at)), "achieved_at must be ISO 8601 with timezone");
+  check(e.every((x) => ["name", "score", "nights_won", "achieved_at", "seed"].every((k) => k in x)), "entry fields");
+  for (let i = 0; i < 12; i++) lb.addEntry({ name: `Player${i}`, score: 1000 + i, nights_won: 3, seed: i }, file, t(100 + i));
+  e = lb.readEntries(file);
+  check(e.length === 10, "keeps the top 10 only, got " + e.length);
+  check(e[0].score === 1011 && e[9].score === 1002, "top 10 are the highest scores");
+  check(lb.readEntries(file).length === 10, "persisted on disk and readable after a 'restart'");
+  const rank = lb.addEntry({ name: "Low_one", score: 5, nights_won: 0, seed: 1 }, file, t(500));
+  check(rank.rank === null && rank.entries.length === 10, "score below the top 10 is not stored");
+  for (const bad of ["ab", "a b c", "abcdefghijklm", "x-y_z!", "", 5]) check(lb.validateEntry({ name: bad, score: 1, nights_won: 0, seed: 1 }) !== null, `name ${JSON.stringify(bad)} must be rejected`);
+  for (const good of ["abc", "Bob_12", "ABCDEFGHIJKL", "Nguyễn", "Trần_Ái9"]) check(lb.validateEntry({ name: good, score: 1, nights_won: 0, seed: 1 }) === null, `name ${good} must be accepted`);
+  check(lb.validateEntry({ name: "abc", score: -1, nights_won: 0, seed: 1 }) !== null, "negative score rejected");
+  check(lb.validateEntry({ name: "abc", score: 1, nights_won: 4, seed: 1 }) !== null, "nights_won 4 rejected");
+  add("leaderboard_rules", "U3", "Top 10 sorted by score (ties: earlier first), ISO 8601 time with timezone, persisted on disk, names 3-12 chars [letters digits _] (Vietnamese letters accepted), invalid score/nights rejected.", errs);
+}
+{
+  const lb = await import("../scripts/server.mjs");
+  const file = join(work, "lb2", "leaderboard.json");
+  const errs = [];
+  const { server, port } = await lb.startServer({ port: 8350, tries: 30, lbPath: file, root: join(root, "dist", "web") });
+  const post = (b) => fetch(`http://localhost:${port}/api/leaderboard`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b) });
+  let r = await post({ name: "Hello_01", score: 250, nights_won: 2, seed: 9 });
+  const j = await r.json();
+  if (r.status !== 200 || j.rank !== 1) errs.push(`valid POST: ${r.status} ${JSON.stringify(j)}`);
+  r = await post({ name: "no", score: 1, nights_won: 0, seed: 1 });
+  if (r.status !== 400) errs.push(`invalid name must be 400, got ${r.status}`);
+  const g = await (await fetch(`http://localhost:${port}/api/leaderboard`)).json();
+  if (g.entries.length !== 1 || g.entries[0].name !== "Hello_01") errs.push("GET after POST: " + JSON.stringify(g));
+  server.close();
+  const out = join(work, "export.json");
+  const x = spawnSync("node", [join(root, "scripts", "serve.mjs"), "--export-leaderboard", out], { encoding: "utf8", env: { ...process.env, LEADERBOARD_PATH: file } });
+  if (x.status !== 0) errs.push(`export exit ${x.status}: ${x.stderr}`);
+  else {
+    const ex = JSON.parse(readFileSync(out, "utf8"));
+    if (!Array.isArray(ex.entries) || ex.entries.length !== 1 || ex.entries[0].score !== 250) errs.push("export content: " + JSON.stringify(ex));
+  }
+  const empty = spawnSync("node", [join(root, "scripts", "serve.mjs"), "--export-leaderboard", join(work, "empty.json")], { encoding: "utf8", env: { ...process.env, LEADERBOARD_PATH: join(work, "nothing.json") } });
+  if (empty.status !== 0 || JSON.stringify(JSON.parse(readFileSync(join(work, "empty.json"), "utf8"))) !== '{"entries":[]}') errs.push("empty export should be {\"entries\":[]}");
+  add("leaderboard_http_and_export", "U3", "POST/GET /api/leaderboard (400 on a bad name) and `node scripts/serve.mjs --export-leaderboard out.json` writes {\"entries\":[...]} in order (and an empty list when nothing is saved).", errs);
+}
+// ---- Bench scenario switches (Ticket-04 part 1, simulation side)
 
 let commit = "unknown";
 let dirty = "";

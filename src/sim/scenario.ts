@@ -59,7 +59,7 @@ export function parseScenario(raw: unknown): Scenario {
       if (p[k] !== undefined) s.player[k] = intNonNeg(p[k], `player.${k}`);
     }
   }
-  for (const k of ["random_motes", "random_shades", "random_drifters", "wind_enabled"] as const) {
+  for (const k of ["random_motes", "random_shades", "random_drifters", "wind_enabled", "bench"] as const) {
     if (raw[k] !== undefined) s[k] = bool(raw[k], k);
   }
   if (raw.motes !== undefined) {

@@ -1,23 +1,31 @@
-// Minimal static server for dist/web (no dependencies).
-import { createServer } from "node:http";
-import { readFile } from "node:fs/promises";
-import { extname, join, normalize } from "node:path";
+// Run the game: `node scripts/serve.mjs` (after `npm run build`).
+//   --export-leaderboard out.json   write {"entries":[...]} (top 10, in order) and exit
+//   --port 3000                     (or PORT=3000)
+import { writeFileSync } from "node:fs";
+import { hasBuild, leaderboardPath, readEntries, startServer } from "./server.mjs";
 
-const root = join(process.cwd(), "dist", "web");
-const port = Number(process.env.PORT ?? 8080);
-const types = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css", ".map": "application/json" };
+const argv = process.argv.slice(2);
+const opt = (name) => {
+  const i = argv.indexOf(name);
+  return i >= 0 ? argv[i + 1] : undefined;
+};
 
-createServer(async (req, res) => {
-  const path = normalize(decodeURIComponent((req.url ?? "/").split("?")[0]));
-  const file = join(root, path === "/" || path === "\\" ? "index.html" : path);
-  if (!file.startsWith(root)) {
-    res.writeHead(403).end();
-    return;
+if (argv.includes("--export-leaderboard")) {
+  const out = opt("--export-leaderboard");
+  if (!out) {
+    console.error("usage: serve --export-leaderboard <out.json>");
+    process.exit(2);
   }
-  try {
-    const data = await readFile(file);
-    res.writeHead(200, { "Content-Type": types[extname(file)] ?? "application/octet-stream" }).end(data);
-  } catch {
-    res.writeHead(404).end("not found");
-  }
-}).listen(port, () => console.log(`Dao Den Long: http://localhost:${port}`));
+  writeFileSync(out, JSON.stringify({ entries: readEntries() }, null, 2) + "\n");
+  console.log(`leaderboard (${leaderboardPath()}) exported to ${out}`);
+  process.exit(0);
+}
+
+if (!hasBuild()) {
+  console.error("dist/web is missing: run `npm run build` first.");
+  process.exit(1);
+}
+const wanted = Number(opt("--port") ?? process.env.PORT ?? 8080);
+const { port } = await startServer({ port: wanted });
+if (port !== wanted) console.log(`port ${wanted} is busy, using ${port}`);
+console.log(`Dao Den Long: http://localhost:${port}`);

@@ -94,6 +94,8 @@ export interface Scenario {
   random_shades?: boolean;
   random_drifters?: boolean;
   wind_enabled?: boolean;
+  /** Benchmark scene (Ticket-04): no damage, pickups, fuel decay, spawns or end conditions; shades only wander. */
+  bench?: boolean;
   motes?: ScenarioMote[];
   shades?: { id?: string; pos: Vec3; state?: ShadeState; state_ticks_left?: number; target_lantern_id?: string }[];
   drifters?: { id?: string; pos: Vec3; state?: DrifterState; stolen?: number; state_ticks_left?: number }[];

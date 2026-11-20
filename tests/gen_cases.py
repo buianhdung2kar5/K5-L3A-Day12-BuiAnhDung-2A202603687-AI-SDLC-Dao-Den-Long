@@ -385,6 +385,16 @@ case("refuel_over_30_pushes_shades_out", ["T2"], "Refuelling a weak lantern past
      expect={"events": [ev(1, "refuel", {"lantern_id": "L1", "amount": 3, "fuel": 50})], "end": end(1, "playing", 15), "snapshots": [snapm(1, {"shades": [{"pos": [0, 0.5, 28.1]}]})]})
 cases.append({"name": "cli_lantern_fuel_out_of_range", "covers": ["T1"], "why": "lantern fuel must be in [0,100].", "args": {"seed": 1, "ticks": 5, "night": 1}, "scenario": {"lanterns": [{"id": "L1", "lit": True, "fuel": 150}]}, "expect_exit": 2})
 
+
+# ======================================================= Phase 4 (Ticket-04, contract v1.3)
+case("bench_scene_has_no_gameplay", ["U1"], "Benchmark scene flag: an adjacent chasing shade does no damage, lanterns do not lose fuel, nothing is picked up and the Night does not end at dawn (time_left 0.05 s = 3 ticks, still playing at tick 100).", A(100),
+     {"bench": True, "random_motes": False, "random_shades": False, "random_drifters": False, "wind_enabled": False, "time_left_s": 0.05,
+      "motes": [[0.5, 0]], "lanterns": lit("L1"), "shades": [{"id": "A", "pos": [0.5, 0.5, 0]}]}, snap=100,
+     expect={"events": [], "end": end(100, "playing", 0), "snapshots": [snapm(100, {"state": "playing", "player": {"flames": 3, "carried": 0}, "motes_active": 1, "lanterns": lant(5, {"lit": True, "fuel": 100})})]})
+case("bench_shades_keep_wandering", ["U1"], "In the benchmark scene shades stay in state wander (no chase even next to Mây) and keep moving toward the nearest unlit lantern: shade at (5,0) heads for L4/L5-ish unlit lanterns and is still wander at tick 60.", A(60),
+     {"bench": True, "random_motes": False, "random_shades": False, "random_drifters": False, "wind_enabled": False, "motes": [], "lanterns": lit("L1", "L2", "L3"), "shades": [{"id": "A", "pos": [5, 0.5, 0], "state": "wander"}]}, snap=60,
+     expect={"events": [], "end": end(60), "snapshots": [snapm(60, {"shades": [{"id": "A", "state": "wander"}]})]})
+
 # ---------------- errors
 for name, why, night, scn, inp in [
     ("cli_night_out_of_range", "--night 4 is invalid", 4, None, None),

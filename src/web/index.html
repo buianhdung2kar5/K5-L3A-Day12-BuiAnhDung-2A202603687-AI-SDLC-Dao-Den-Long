@@ -6,70 +6,92 @@
   <title>Đảo Đèn Lồng</title>
   <link rel="icon" href="data:," />
   <style>
-    :root { --night: #0E1430; --mist: #1B2350; --gold: #F2C14E; --lamp: #FFB347; --core: #FFE9B0; --danger: #FF5A5F; --ink: #F5F1E6; --glass: rgba(20, 28, 66, 0.62); }
+    /* 1rem = 18 px (22.5 px with "Chữ lớn"): every UI text is >= 1rem, so >= 18 px at 1280x720 */
+    :root { --night: #0E1430; --mist: #1B2350; --gold: #F2C14E; --lamp: #FFB347; --core: #FFE9B0; --danger: #FF5A5F; --ink: #F5F1E6; --glass: rgba(20, 28, 66, 0.72); }
+    html { font-size: 18px; }
     body.cb { --danger: #FFFFFF; }
     * { box-sizing: border-box; }
-    html, body { margin: 0; height: 100%; overflow: hidden; background: var(--night); font-family: "Segoe UI", "Trebuchet MS", system-ui, sans-serif; color: var(--ink); user-select: none; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: var(--night); font-family: "Segoe UI", "Trebuchet MS", system-ui, sans-serif; font-size: 1rem; color: var(--ink); user-select: none; }
     #game { width: 100%; height: 100%; display: block; outline: none; touch-action: none; }
-    .card { background: var(--glass); backdrop-filter: blur(6px); border: 1px solid rgba(242, 193, 78, 0.4); border-radius: 14px; box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35), inset 0 0 14px rgba(255, 179, 71, 0.06); padding: 7px 14px; font-size: 15px; letter-spacing: 0.2px; }
-    .card b { color: var(--gold); font-size: 19px; }
-    .card .need { font-size: 12px; opacity: 0.75; margin-left: 6px; }
+    .card { background: var(--glass); backdrop-filter: blur(6px); border: 1px solid rgba(242, 193, 78, 0.45); border-radius: 0.8rem; box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35), inset 0 0 14px rgba(255, 179, 71, 0.06); padding: 0.35rem 0.8rem; font-size: 1rem; }
+    .card b { color: var(--gold); font-size: 1.1rem; }
+    .card .need { font-size: 1rem; opacity: 0.8; margin-left: 0.4rem; }
     #hud { position: fixed; inset: 0; pointer-events: none; }
     #hud.hidden { display: none; }
-    #hud-tl { position: absolute; top: 14px; left: 14px; display: flex; gap: 8px; align-items: center; padding: 8px 12px; }
-    .flame { width: 20px; height: 27px; border-radius: 50% 50% 50% 50% / 62% 62% 38% 38%; background: radial-gradient(circle at 50% 72%, #FFF6C2, var(--lamp) 55%, #c8601e); box-shadow: 0 0 12px var(--lamp); animation: flick 1.4s ease-in-out infinite; }
+    #hud-tl { position: absolute; top: 0.7rem; left: 0.8rem; display: flex; gap: 0.45rem; align-items: center; padding: 0.45rem 0.7rem; }
+    .flame { width: 1.1rem; height: 1.5rem; border-radius: 50% 50% 50% 50% / 62% 62% 38% 38%; background: radial-gradient(circle at 50% 72%, #FFF6C2, var(--lamp) 55%, #c8601e); box-shadow: 0 0 12px var(--lamp); }
+    body:not(.calm) .flame { animation: flick 1.4s ease-in-out infinite; }
     .flame:nth-child(2) { animation-delay: .25s; } .flame:nth-child(3) { animation-delay: .5s; }
     @keyframes flick { 50% { transform: scale(1.08, 0.94); filter: brightness(1.15); } }
     .flame.off { background: #2a2f4a; box-shadow: none; opacity: 0.55; animation: none; }
-    #hud-tc { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); text-align: center; }
-    #hud-clock { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; padding: 4px 22px; display: inline-block; text-shadow: 0 0 10px rgba(255, 179, 71, .5); }
+    #hud-tc { position: absolute; top: 0.65rem; left: 50%; transform: translateX(-50%); text-align: center; }
+    #hud-clock { font-size: 1.7rem; font-weight: 700; font-variant-numeric: tabular-nums; padding: 0.15rem 1.2rem; display: inline-block; text-shadow: 0 0 10px rgba(255, 179, 71, .5); }
     #hud-clock.low { color: var(--danger); border-color: var(--danger); animation: blink 1s steps(2, start) infinite; }
     #hud-clock.low::before { content: "\26A0\FE0E "; }
     @keyframes blink { 50% { opacity: 0.3; } }
-    #hud-night { margin-top: 4px; font-size: 13px; opacity: 0.85; letter-spacing: 1px; text-transform: uppercase; }
-    #hud-tr { position: absolute; top: 14px; right: 14px; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
-    #hud-bar-wrap { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; }
-    #hud-cap-label { font-size: 13px; opacity: 0.9; }
-    #hud-bar { display: flex; gap: 4px; padding: 6px 10px; }
-    .slot { width: 17px; height: 17px; border-radius: 50%; border: 2px solid rgba(242, 193, 78, 0.5); background: rgba(14, 20, 48, 0.55); }
+    #hud-night { margin-top: 0.2rem; font-size: 1rem; opacity: 0.9; letter-spacing: 1px; text-transform: uppercase; }
+    #hud-tr { position: absolute; top: 0.75rem; right: 0.8rem; display: flex; flex-direction: column; gap: 0.45rem; align-items: flex-end; }
+    #hud-bar-wrap { position: absolute; bottom: 0.9rem; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 0.3rem; }
+    #hud-bar { display: flex; gap: 0.22rem; padding: 0.3rem 0.5rem; }
+    .slot { width: 0.95rem; height: 0.95rem; border-radius: 50%; border: 2px solid rgba(242, 193, 78, 0.5); background: rgba(14, 20, 48, 0.55); }
     .slot.on { background: radial-gradient(circle, #FFF6C2, #FFE58A 70%); box-shadow: 0 0 9px #FFE58A; border-color: #FFE58A; }
     .slot.locked { display: none; }
-    #hud-br { position: absolute; bottom: 14px; right: 16px; display: flex; gap: 14px; }
-    .cd { position: relative; width: 60px; height: 60px; border-radius: 50%; border: 2px solid rgba(242, 193, 78, 0.65); display: flex; align-items: center; justify-content: center; background: rgba(14, 20, 48, 0.7); box-shadow: 0 0 12px rgba(0, 0, 0, 0.4); }
-    .cd .name { position: absolute; bottom: -19px; font-size: 11px; color: var(--ink); }
-    .cd .num { font-size: 15px; font-weight: 700; color: var(--gold); }
+    #hud-br { position: absolute; bottom: 1.5rem; right: 0.9rem; display: flex; gap: 0.8rem; }
+    .cd { position: relative; width: 3.4rem; height: 3.4rem; border-radius: 50%; border: 2px solid rgba(242, 193, 78, 0.65); display: flex; align-items: center; justify-content: center; background: rgba(14, 20, 48, 0.7); box-shadow: 0 0 12px rgba(0, 0, 0, 0.4); }
+    .cd .name { position: absolute; bottom: -1.3rem; font-size: 1rem; color: var(--ink); white-space: nowrap; }
+    .cd .num { font-size: 1rem; font-weight: 700; color: var(--gold); text-align: center; }
     .cd.ready { box-shadow: 0 0 14px rgba(255, 233, 176, .55); }
     .cd.ready .num { color: #FFF6C2; }
     .cd.dim { opacity: 0.45; }
-    #hud-prompt { position: absolute; bottom: 92px; left: 50%; transform: translateX(-50%); font-size: 17px; display: none; border-color: var(--lamp); }
+    #hud-prompt { position: absolute; bottom: 5.6rem; left: 50%; transform: translateX(-50%); font-size: 1.05rem; display: none; border-color: var(--lamp); white-space: nowrap; }
     #hud-arrow { position: absolute; width: 0; height: 0; display: none; border-left: 14px solid transparent; border-right: 14px solid transparent; border-bottom: 30px solid var(--gold); filter: drop-shadow(0 0 7px var(--lamp)); }
-    #warn { position: absolute; top: 104px; left: 50%; transform: translateX(-50%); font-size: 19px; display: none; border-color: #8FA3B8; }
+    #warn { position: absolute; top: 5.6rem; left: 50%; transform: translateX(-50%); display: none; border-color: #8FA3B8; }
+    #countdown { position: absolute; top: 26%; left: 50%; transform: translateX(-50%); font-size: 5rem; font-weight: 800; display: none; color: var(--danger); text-shadow: 0 0 22px rgba(0, 0, 0, .7); }
+    #countdown::before { content: ""; }
+    #captions { position: absolute; left: 0.8rem; bottom: 6.2rem; display: flex; flex-direction: column; gap: 0.35rem; max-width: 26rem; }
+    #captions .card { border-left: 4px solid var(--gold); }
+    #captions .card.danger { border-left-color: var(--danger); }
+    .shade-arrow { position: absolute; width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; border-bottom: 32px solid #7A3CFF; filter: drop-shadow(0 0 8px #000); }
+    body.cb .shade-arrow { border-bottom-color: #00B3FF; }
     #flash { position: fixed; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at center, rgba(0,0,0,0) 40%, rgba(255, 90, 95, 0.5) 100%); transition: opacity 0.35s; }
     body.cb #flash { background: radial-gradient(ellipse at center, rgba(0,0,0,0) 40%, rgba(255, 255, 255, 0.45) 100%); }
     #flash.on { opacity: 1; transition: none; }
-    #help { position: fixed; bottom: 4px; left: 10px; font-size: 11px; opacity: 0.5; pointer-events: none; }
     #overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: radial-gradient(ellipse at 50% 35%, rgba(30, 40, 96, 0.78), rgba(6, 8, 24, 0.92)); backdrop-filter: blur(3px); }
     #overlay.hidden { display: none; }
-    .flies span { position: absolute; width: 7px; height: 7px; border-radius: 50%; background: #FFF6C2; box-shadow: 0 0 12px 3px rgba(255, 229, 138, .8); animation: drift 9s ease-in-out infinite; opacity: .8; }
+    .flies span { position: absolute; width: 7px; height: 7px; border-radius: 50%; background: #FFF6C2; box-shadow: 0 0 12px 3px rgba(255, 229, 138, .8); opacity: .8; }
+    body:not(.calm) .flies span { animation: drift 9s ease-in-out infinite; }
     @keyframes drift { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(36px, -52px); opacity: .35; } }
-    .panel { position: relative; display: none; width: min(500px, 92vw); text-align: center; padding: 28px 34px 30px; background: linear-gradient(160deg, rgba(34, 44, 104, 0.96), rgba(20, 26, 64, 0.96)); border: 1px solid rgba(242, 193, 78, 0.65); border-radius: 20px; box-shadow: 0 14px 50px rgba(0, 0, 0, 0.55), 0 0 40px rgba(255, 179, 71, 0.12); }
-    .panel.show { display: block; animation: rise .35s ease-out; }
+    .panel { position: relative; display: none; width: min(30rem, 94vw); max-height: 94vh; overflow-y: auto; text-align: center; padding: 1.4rem 1.7rem 1.6rem; background: linear-gradient(160deg, rgba(34, 44, 104, 0.97), rgba(20, 26, 64, 0.97)); border: 1px solid rgba(242, 193, 78, 0.65); border-radius: 1.1rem; box-shadow: 0 14px 50px rgba(0, 0, 0, 0.55), 0 0 40px rgba(255, 179, 71, 0.12); }
+    .panel.wide { width: min(38rem, 96vw); }
+    .panel.show { display: block; }
+    body:not(.calm) .panel.show { animation: rise .35s ease-out; }
     @keyframes rise { from { transform: translateY(14px); opacity: 0; } }
-    .panel h1 { margin: 0 0 4px; font-size: 40px; letter-spacing: 1px; background: linear-gradient(90deg, #FFE9B0, #FFB347 60%, #F2C14E); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0 12px rgba(255, 179, 71, .45)); }
-    .panel h2 { margin: 0 0 8px; font-size: 27px; color: var(--gold); text-shadow: 0 0 12px rgba(255, 179, 71, .4); }
-    .panel p { margin: 9px 0; line-height: 1.5; }
-    .panel .sub { margin: 0 0 12px; letter-spacing: 3px; text-transform: uppercase; font-size: 12px; opacity: .8; }
-    .panel .small { font-size: 13px; opacity: 0.85; }
+    .panel h1 { margin: 0 0 0.2rem; font-size: 2.2rem; letter-spacing: 1px; background: linear-gradient(90deg, #FFE9B0, #FFB347 60%, #F2C14E); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0 12px rgba(255, 179, 71, .45)); }
+    .panel h2 { margin: 0 0 0.4rem; font-size: 1.5rem; color: var(--gold); text-shadow: 0 0 12px rgba(255, 179, 71, .4); }
+    .panel p { margin: 0.5rem 0; line-height: 1.5; font-size: 1rem; }
+    .panel .sub { margin: 0 0 0.6rem; letter-spacing: 3px; text-transform: uppercase; font-size: 1rem; opacity: .85; }
     .panel .quote { font-style: italic; color: var(--core); }
-    .panel button { display: block; width: 100%; margin: 11px 0 0; padding: 11px 24px; font-size: 18px; font-weight: 600; border-radius: 12px; border: 0; background: linear-gradient(180deg, #FFC96B, var(--lamp)); color: #2a1708; cursor: pointer; box-shadow: 0 4px 14px rgba(255, 179, 71, .3); transition: transform .12s, filter .12s; }
+    .panel button { display: block; width: 100%; margin: 0.6rem 0 0; padding: 0.6rem 1.2rem; font-size: 1.05rem; font-weight: 600; border-radius: 0.7rem; border: 0; background: linear-gradient(180deg, #FFC96B, var(--lamp)); color: #2a1708; cursor: pointer; box-shadow: 0 4px 14px rgba(255, 179, 71, .3); font-family: inherit; }
+    body:not(.calm) .panel button { transition: transform .12s, filter .12s; }
     .panel button.alt { background: linear-gradient(180deg, #4a5599, #3a4378); color: var(--ink); box-shadow: none; }
-    .panel button:hover { transform: translateY(-2px); filter: brightness(1.1); }
-    .panel label { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 14px 0; text-align: left; }
-    .panel input[type=range] { width: 210px; accent-color: var(--lamp); }
-    .panel input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--lamp); }
-    .panel .hint { font-size: 12px; opacity: .7; margin: -6px 0 6px; text-align: left; }
-    .legend { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 10px 0 2px; }
-    .legend span { background: rgba(14, 20, 48, .6); border: 1px solid rgba(242, 193, 78, .3); border-radius: 8px; padding: 3px 9px; font-size: 12px; }
+    .panel button:hover { filter: brightness(1.12); }
+    .panel button:focus-visible, .panel input:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+    .panel label { display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; margin: 0.7rem 0; text-align: left; font-size: 1rem; }
+    .panel input[type=range] { width: 11rem; accent-color: var(--lamp); }
+    .panel input[type=checkbox] { width: 1.3rem; height: 1.3rem; accent-color: var(--lamp); }
+    .panel input[type=text] { width: 100%; padding: 0.5rem 0.7rem; font-size: 1.1rem; border-radius: 0.6rem; border: 2px solid rgba(242, 193, 78, .5); background: rgba(8, 10, 30, .7); color: var(--ink); font-family: inherit; }
+    .panel .hint { font-size: 1rem; opacity: .75; margin: 0 0 0.4rem; text-align: left; }
+    .panel .error { color: var(--danger); min-height: 1.5rem; }
+    .panel h3 { margin: 1rem 0 0.2rem; font-size: 1.15rem; color: var(--gold); text-align: left; }
+    .legend { display: flex; gap: 0.4rem; justify-content: center; flex-wrap: wrap; margin: 0.6rem 0 0.2rem; }
+    .legend span { background: rgba(14, 20, 48, .6); border: 1px solid rgba(242, 193, 78, .3); border-radius: 0.5rem; padding: 0.15rem 0.5rem; font-size: 1rem; }
+    .keyrow { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin: 0.3rem 0; text-align: left; }
+    .keyrow button { width: 10rem; margin: 0; padding: 0.25rem 0.6rem; font-size: 1rem; background: linear-gradient(180deg, #4a5599, #3a4378); color: var(--ink); box-shadow: none; }
+    .keyrow button.capturing { background: linear-gradient(180deg, #FFC96B, var(--lamp)); color: #2a1708; }
+    table.board { width: 100%; border-collapse: collapse; font-size: 1rem; }
+    table.board th, table.board td { padding: 0.25rem 0.4rem; text-align: left; border-bottom: 1px solid rgba(242, 193, 78, .2); }
+    table.board tr.me td { color: var(--gold); font-weight: 700; }
+    table.board td.num { text-align: right; }
   </style>
 </head>
 <body>
@@ -83,6 +105,9 @@
       <div class="card">Điểm <b id="hud-score">0</b></div>
     </div>
     <div id="warn" class="card">Gió mạnh sắp tới!</div>
+    <div id="countdown"></div>
+    <div id="captions" aria-live="polite"></div>
+    <div id="shade-arrows"></div>
     <div id="hud-prompt" class="card"><span id="hud-prompt-text">E — Nạp ánh sáng</span> (<span id="hud-prompt-x">0</span>/<span id="hud-prompt-y">10</span>)</div>
     <div id="hud-arrow"></div>
     <div id="hud-bar-wrap">
@@ -95,7 +120,6 @@
     </div>
   </div>
   <div id="flash"></div>
-  <div id="help">WASD đi · Space nhảy · Shift lướt · E nạp/châm dầu · F Tỏa Sáng (3 đom đóm) · Mũi tên trái/phải hoặc kéo chuột xoay · Esc/P tạm dừng · R chơi lại đêm</div>
 
   <div id="overlay">
     <div class="flies" aria-hidden="true">
@@ -107,14 +131,15 @@
       <h1>Đảo Đèn Lồng</h1>
       <div class="sub">Giữ đảo sáng tới bình minh</div>
       <p>Mây là người giữ đèn nhỏ tuổi. Đèn lồng cạn dầu dần, còn Bóng Mực thì hút dầu. Hãy gom đom đóm, thắp và châm dầu cho các Đèn Lồng Lớn để đảo còn sáng khi trời rạng.</p>
-      <div class="legend"><span>WASD đi</span><span>Space nhảy</span><span>Shift lướt</span><span>E nạp / châm dầu</span><span>F Tỏa Sáng</span><span>Esc tạm dừng</span></div>
+      <div class="legend" id="legend"></div>
       <button id="btn-start">Bắt đầu</button>
+      <button id="btn-menu-board" class="alt">Bảng xếp hạng</button>
       <button id="btn-menu-settings" class="alt">Cài đặt</button>
     </div>
     <div class="panel" id="p-intro">
       <h2 id="intro-title">Đêm 1</h2>
       <p class="quote" id="intro-quote"></p>
-      <p class="small" id="intro-goal"></p>
+      <p id="intro-goal"></p>
       <button id="btn-intro-go">Vào đêm</button>
     </div>
     <div class="panel" id="p-pause">
@@ -124,26 +149,53 @@
       <button id="btn-pause-settings" class="alt">Cài đặt</button>
       <button id="btn-pause-menu" class="alt">Về menu</button>
     </div>
-    <div class="panel" id="p-settings">
+    <div class="panel wide" id="p-settings">
       <h2>Cài đặt</h2>
       <label>Âm lượng <input type="range" id="set-volume" min="0" max="100" step="1" /></label>
       <label>Độ nhạy chuột <input type="range" id="set-sens" min="5" max="100" step="1" /></label>
+      <h3>Dễ tiếp cận</h3>
       <label>Bảng màu dễ phân biệt <input type="checkbox" id="set-cb" /></label>
-      <p class="hint">Viền và mắt Bóng Mực chuyển sang xanh lam, cảnh báo thành màu trắng kèm ⚠.</p>
+      <label>Giảm chuyển động (tắt rung camera và chớp màn hình) <input type="checkbox" id="set-calm" /></label>
+      <label>Chữ lớn (×1.25) <input type="checkbox" id="set-large" /></label>
+      <h3>Phím điều khiển</h3>
+      <p class="hint">Bấm vào một phím rồi nhấn phím mới. Phím trùng sẽ bị báo và không được áp dụng.</p>
+      <div id="keys-list"></div>
+      <p class="error" id="keys-msg"></p>
+      <button id="btn-keys-reset" class="alt">Khôi phục mặc định</button>
       <button id="btn-settings-back">Quay lại</button>
     </div>
     <div class="panel" id="p-result">
       <h2 id="res-title">Kết quả</h2>
       <p id="res-text"></p>
       <button id="btn-next">Đêm kế tiếp</button>
+      <button id="btn-res-save" class="alt">Lưu điểm vào bảng xếp hạng</button>
       <button id="btn-res-replay" class="alt">Chơi lại Đêm</button>
       <button id="btn-res-menu" class="alt">Về menu</button>
     </div>
     <div class="panel" id="p-dawn">
       <h1>Bình Minh</h1>
       <p>Ánh sáng đã giữ được cả ba hòn đảo tới sáng. Cảm ơn Mây và Ông Đăng.</p>
-      <p>Tổng điểm: <b id="dawn-score" style="color:var(--gold);font-size:24px">0</b></p>
-      <button id="btn-dawn-menu">Về menu</button>
+      <p>Tổng điểm: <b id="dawn-score" style="color:var(--gold);font-size:1.6rem">0</b></p>
+      <button id="btn-dawn-save">Lưu điểm vào bảng xếp hạng</button>
+      <button id="btn-dawn-menu" class="alt">Về menu</button>
+    </div>
+    <div class="panel" id="p-name">
+      <h2>Lưu điểm</h2>
+      <p>Tổng điểm <b id="name-score" style="color:var(--gold)">0</b> · đã thắng <b id="name-nights">0</b> Đêm</p>
+      <p class="hint">Tên 3-12 ký tự: chữ, số hoặc dấu gạch dưới.</p>
+      <input type="text" id="name-input" maxlength="12" autocomplete="off" aria-label="Tên của bạn" />
+      <p class="error" id="name-error"></p>
+      <button id="btn-name-save">Lưu</button>
+      <button id="btn-name-cancel" class="alt">Bỏ qua</button>
+    </div>
+    <div class="panel wide" id="p-board">
+      <h2>Bảng xếp hạng</h2>
+      <p id="board-note"></p>
+      <table class="board" aria-label="Top 10">
+        <thead><tr><th>#</th><th>Tên</th><th class="num">Điểm</th><th class="num">Đêm</th><th>Ngày</th></tr></thead>
+        <tbody id="board-body"></tbody>
+      </table>
+      <button id="btn-board-back">Về menu</button>
     </div>
   </div>
   <script src="main.js"></script>

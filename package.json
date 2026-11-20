@@ -5,13 +5,17 @@
   "description": "Dao Den Long - 3D game, TypeScript sim + Babylon.js",
   "scripts": {
     "build": "npm run build:headless && npm run build:web",
-    "build:headless": "esbuild src/headless.ts --bundle --platform=node --target=node18 --outfile=dist/headless.js",
+    "build:headless": "esbuild src/headless.ts src/soak.ts --bundle --platform=node --target=node18 --outdir=dist",
     "build:web": "node scripts/build-web.mjs",
     "start": "node scripts/serve.mjs",
     "typecheck": "tsc --noEmit",
     "test": "npm run build && node tests/run.mjs",
     "e2e": "npm run build && node tests/e2e.mjs",
-    "headless": "node dist/headless.js"
+    "headless": "node dist/headless.js",
+    "bench": "node scripts/bench.mjs --seed 42 --duration 30 --out bench.json",
+    "soak": "node dist/soak.js --seed 7 --nights 10 --out soak.json",
+    "package": "node scripts/package-release.mjs v1.0.0",
+    "demo": "node scripts/demo-video.mjs docs/demo/demo.mp4"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

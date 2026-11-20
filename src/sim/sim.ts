@@ -111,6 +111,7 @@ export class Sim {
   private randomShades: boolean;
   private randomDrifters: boolean;
   private windEnabled: boolean;
+  private bench: boolean;
   private rngMote: Rng;
   private rngDrop: Rng;
   private rngShade: Rng;
@@ -133,6 +134,7 @@ export class Sim {
     this.randomShades = scenario.random_shades !== false;
     this.randomDrifters = scenario.random_drifters !== false;
     this.windEnabled = scenario.wind_enabled !== false;
+    this.bench = scenario.bench === true;
     this.durationTicks = Math.round((scenario.time_left_s ?? map.durationS) * K.tps);
 
     const ground = (x: number, z: number): number => map.height(x, z) ?? 0;
@@ -418,7 +420,7 @@ export class Sim {
     const fuelMaxU = t.fuel_max * K.tps;
     const perMoteU = t.fuel_per_mote * K.tps;
     for (const l of this.lanterns) {
-      if (!l.lit) continue;
+      if (!l.lit || this.bench) continue;
       const draining = this.shades.filter((s) => s.state === "drain" && s.target === l.id).length;
       l.fuelU -= t.fuel_decay_per_s + draining * t.drain_per_s;
       if (l.fuelU <= 0) {
@@ -429,7 +431,7 @@ export class Sim {
       }
     }
     for (const s of this.shades) {
-      if (s.state !== "drain" || !s.target) continue;
+      if (s.state !== "drain" || !s.target || this.bench) continue;
       const l = this.lanterns.find((x) => x.id === s.target);
       if (!l || !l.lit) continue;
       if (++s.drainTicks % 60 === 0) emit("fuel_drain", { lantern_id: l.id, shade_id: s.id, fuel: r1(l.fuelU / K.tps) });
@@ -447,7 +449,7 @@ export class Sim {
     if (!frozen()) this.movePlayer(input, e, emit);
 
     // 4. pickups
-    if (!frozen()) {
+    if (!frozen() && !this.bench) {
       for (let i = 0; i < this.motes.length && pl.carried < this.capacity; ) {
         const m = this.motes[i];
         if (hdist(pl.pos, m.pos) <= t.pickup_radius && Math.abs(pl.pos[1] - m.pos[1]) <= K.heightTol) {
@@ -589,7 +591,7 @@ export class Sim {
           s.drainTicks = 0;
         } else continue; // stands still and keeps draining
       }
-      if (s.state === "wander" && d <= K.shadeDetect) s.state = "chase";
+      if (s.state === "wander" && d <= K.shadeDetect && !this.bench) s.state = "chase";
       else if (s.state === "chase" && d > K.shadeLose) s.state = "wander";
       if (s.state === "chase") {
         const [ux, uz] = dirXZ(s.pos, pl.pos);
@@ -641,7 +643,7 @@ export class Sim {
     }
 
     // 9. contacts: drifters steal first, then shades hit (ascending id)
-    if (!frozen()) {
+    if (!frozen() && !this.bench) {
       for (const d of [...this.drifters].sort(byId)) {
         if (d.state !== "chase" || pl.carried <= 0 || hdist(d.pos, pl.pos) > K.drifterTouch) continue;
         const amount = Math.min(K.drifterSteal, pl.carried);
@@ -740,7 +742,9 @@ export class Sim {
     }
 
     // 11. win / lose: no early win; the Night is decided at dawn by how many lanterns are still lit
-    if (pl.flames <= 0) {
+    if (this.bench) {
+      // benchmark scene never ends
+    } else if (pl.flames <= 0) {
       this.end(ev, now, "lost", "no_flames");
     } else if (this.durationTicks - st <= 0) {
       const lit = this.lanterns.filter((l) => l.lit);

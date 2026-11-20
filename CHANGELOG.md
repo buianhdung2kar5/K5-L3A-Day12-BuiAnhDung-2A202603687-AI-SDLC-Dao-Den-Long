@@ -1,5 +1,22 @@
 # Changelog
 
+## Phase 4: "Bình minh" (contract v1.3, tag `phase-4`, Release `v1.0.0`)
+
+### Thay đổi phá vỡ tương thích (breaking)
+
+- **Phím tạm dừng** mặc định chỉ còn `Esc` (trước đây `Esc` và `P`); `P` không còn là phím cố định. Mũi tên lên/xuống không còn điều khiển di chuyển (mũi tên trái/phải vẫn xoay camera). Mọi phím đổi được trong Cài đặt.
+- **Lệnh chạy game** (`run_cmd`) là `node scripts/serve.mjs` (cũng là `npm start`); nếu cổng bận thì tự chuyển sang cổng kế tiếp.
+- **Bố cục chữ:** toàn bộ UI dùng đơn vị rem, tối thiểu 18 px ở 1280×720; dòng gợi ý phím ở đáy màn hình được thay bằng chú giải trong menu.
+- **Contract v1.3:** thêm `bench_cmd` (`node scripts/bench.mjs`) và `soak_cmd` (`node dist/soak.js`); scenario có thêm cờ `bench` (cảnh benchmark, tắt gameplay). Mọi yêu cầu v1.0-v1.2 giữ nguyên.
+
+### Thêm
+
+- **Benchmark** (`npm run bench`): cảnh chuẩn 200 Bóng Mực `wander` + 100 đom đóm, camera bay vòng, đo `avg_fps`, `p1_low_fps`, `frame_ms_p95`, `load_ms`, bộ nhớ, ghi `bench.json`. Bóng Mực được vẽ bằng thin instances.
+- **Soak test** (`npm run soak`): 10 Đêm trong một tiến trình, input ngẫu nhiên theo seed, kiểm tra không crash và bộ nhớ không tăng quá 20%, ghi `soak.json`.
+- **Bảng xếp hạng cục bộ** top 10 (server lưu `data/leaderboard.json`, xuất bằng `--export-leaderboard`; bản web tĩnh dùng localStorage).
+- **Dễ tiếp cận:** đổi phím (báo trùng, khôi phục mặc định), phụ đề/chỉ báo hình ảnh (Bóng Mực xuất hiện kèm mũi tên mép màn hình, gió sắp thổi, 10 giây cuối, đèn dưới 30 dầu), giảm chuyển động, chữ lớn ×1.25.
+- Đóng gói Release `v1.0.0` (zip web tĩnh + server Node), retro tổng kết, video demo.
+
 ## Phase 3: "Đèn cạn dầu" (contract v1.2, tag `phase-3`)
 
 ### Thay đổi phá vỡ tương thích (breaking)

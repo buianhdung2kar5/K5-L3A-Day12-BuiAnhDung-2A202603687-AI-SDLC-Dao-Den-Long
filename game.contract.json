@@ -1,9 +1,11 @@
 {
-  "contract_version": "1.2",
+  "contract_version": "1.3",
   "team": "2A202603687-bui-anh-dung",
   "build_cmd": "npm install && npm run build",
-  "run_cmd": "npm start",
+  "run_cmd": "node scripts/serve.mjs",
   "headless_cmd": "node dist/headless.js",
+  "bench_cmd": "node scripts/bench.mjs",
+  "soak_cmd": "node dist/soak.js",
   "tuning": {
     "player_speed": 6.0,
     "carry_capacity": 10,
